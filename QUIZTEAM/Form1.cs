@@ -16,5 +16,22 @@ namespace QUIZTEAM
         {
             InitializeComponent();
         }
+
+        private void BotComenzar_Click(object sender, EventArgs e)
+        {
+            // 1. Creamos la instancia de la nueva ventana
+            Categorias ventanaCategorias = new Categorias();
+
+            // 2. La mostramos
+            ventanaCategorias.Show();
+
+            // 3. Ocultamos la ventana actual (la principal)
+            this.Hide();
+        }
+
+        private void BotSalir_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
     }
 }
