@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,6 +16,15 @@ namespace QUIZTEAM
         public Form1()
         {
             InitializeComponent();
+        }
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // Esto construye la ruta sin importar en qué computadora estés
+            string nombreArchivo = "bienvenida.png";
+            string rutaConfigurada = Path.Combine(Application.StartupPath, "Imagenes", nombreArchivo);
+
+            // Resultado real para el programa: "CarpetaDeTuProyecto/bin/Debug/Imagenes/bienvenida.png"
+            ImagBienvenida.Image = Image.FromFile(rutaConfigurada);
         }
 
         private void BotComenzar_Click(object sender, EventArgs e)
