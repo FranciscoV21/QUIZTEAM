@@ -19,22 +19,37 @@ namespace QUIZTEAM
         }
         private void Form1_Load(object sender, EventArgs e)
         {
-            // Esto construye la ruta sin importar en qué computadora estés
             string nombreArchivo = "bienvenida.png";
-            string rutaConfigurada = Path.Combine(Application.StartupPath, "Imagenes", nombreArchivo);
+            string carpeta = Path.Combine(Application.StartupPath, "Imagenes");
+            string rutaConfigurada = Path.Combine(carpeta, nombreArchivo);
 
-            // Resultado real para el programa: "CarpetaDeTuProyecto/bin/Debug/Imagenes/bienvenida.png"
-            ImagBienvenida.Image = Image.FromFile(rutaConfigurada);
+            // 1. ¿Existe la carpeta Imagenes en el Debug?
+            if (!Directory.Exists(carpeta))
+            {
+                MessageBox.Show("ERROR: La carpeta 'Imagenes' no existe en: " + carpeta);
+                return;
+            }
+
+            // 2. ¿Existe el archivo ahí dentro?
+            if (File.Exists(rutaConfigurada))
+            {
+                ImagBienvenida.Image = Image.FromFile(rutaConfigurada);
+                ImagBienvenida.SizeMode = PictureBoxSizeMode.Zoom;
+            }
+            else
+            {
+                MessageBox.Show("ERROR: No veo el archivo '" + nombreArchivo + "' en: " + carpeta);
+            }
         }
 
         private void BotComenzar_Click(object sender, EventArgs e)
         {
             // 1. Creamos la instancia de la nueva ventana
             Categorias ventanaCategorias = new Categorias();
-
             // 2. La mostramos
-            ventanaCategorias.Show();
+            ventanaCategorias.FormClosed += (s, args) => this.Show();
 
+            ventanaCategorias.Show();
             // 3. Ocultamos la ventana actual (la principal)
             this.Hide();
         }

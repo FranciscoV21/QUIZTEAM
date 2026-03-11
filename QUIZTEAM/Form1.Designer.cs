@@ -92,6 +92,7 @@
             this.Controls.Add(this.BotSalir);
             this.Name = "Form1";
             this.Text = "Form1";
+            this.Load += new System.EventHandler(this.Form1_Load);
             ((System.ComponentModel.ISupportInitialize)(this.ImagBienvenida)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
