@@ -11,6 +11,7 @@ using System.Windows.Forms;
 
 namespace QUIZTEAM
 {
+    //Hola
     public partial class Form1 : Form
     {
         public Form1()
@@ -57,6 +58,11 @@ namespace QUIZTEAM
         private void BotSalir_Click(object sender, EventArgs e)
         {
             Application.Exit();
+        }
+
+        private void ImagBienvenida_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }
