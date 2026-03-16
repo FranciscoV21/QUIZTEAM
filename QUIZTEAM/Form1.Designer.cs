@@ -28,83 +28,18 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.textBox1 = new System.Windows.Forms.TextBox();
-            this.BotComenzar = new System.Windows.Forms.Button();
-            this.BotSalir = new System.Windows.Forms.Button();
-            this.ImagBienvenida = new System.Windows.Forms.PictureBox();
-            ((System.ComponentModel.ISupportInitialize)(this.ImagBienvenida)).BeginInit();
             this.SuspendLayout();
-            // 
-            // textBox1
-            // 
-            this.textBox1.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.textBox1.Font = new System.Drawing.Font("Microsoft Sans Serif", 35F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textBox1.Location = new System.Drawing.Point(0, 0);
-            this.textBox1.Multiline = true;
-            this.textBox1.Name = "textBox1";
-            this.textBox1.ReadOnly = true;
-            this.textBox1.Size = new System.Drawing.Size(800, 381);
-            this.textBox1.TabIndex = 0;
-            this.textBox1.Text = "BIENVENIDO A NUESTRO QUIZ";
-            this.textBox1.TextAlign = System.Windows.Forms.HorizontalAlignment.Center;
-            // 
-            // BotComenzar
-            // 
-            this.BotComenzar.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.BotComenzar.Font = new System.Drawing.Font("Microsoft Sans Serif", 20F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.BotComenzar.Location = new System.Drawing.Point(0, 296);
-            this.BotComenzar.Name = "BotComenzar";
-            this.BotComenzar.Size = new System.Drawing.Size(800, 85);
-            this.BotComenzar.TabIndex = 1;
-            this.BotComenzar.Text = "CLICK AQUI PARA COMENZAR";
-            this.BotComenzar.UseVisualStyleBackColor = true;
-            this.BotComenzar.Click += new System.EventHandler(this.BotComenzar_Click);
-            // 
-            // BotSalir
-            // 
-            this.BotSalir.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.BotSalir.Font = new System.Drawing.Font("Microsoft Sans Serif", 20F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.BotSalir.Location = new System.Drawing.Point(0, 381);
-            this.BotSalir.Name = "BotSalir";
-            this.BotSalir.Size = new System.Drawing.Size(800, 69);
-            this.BotSalir.TabIndex = 2;
-            this.BotSalir.Text = "SALIR";
-            this.BotSalir.UseVisualStyleBackColor = true;
-            this.BotSalir.Click += new System.EventHandler(this.BotSalir_Click);
-            // 
-            // ImagBienvenida
-            // 
-            this.ImagBienvenida.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.ImagBienvenida.Location = new System.Drawing.Point(0, 95);
-            this.ImagBienvenida.Name = "ImagBienvenida";
-            this.ImagBienvenida.Size = new System.Drawing.Size(800, 201);
-            this.ImagBienvenida.TabIndex = 3;
-            this.ImagBienvenida.TabStop = false;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(800, 450);
-            this.Controls.Add(this.ImagBienvenida);
-            this.Controls.Add(this.BotComenzar);
-            this.Controls.Add(this.textBox1);
-            this.Controls.Add(this.BotSalir);
+            this.ClientSize = new System.Drawing.Size(780, 500); // Ajustado al tamaño de tu código
             this.Name = "Form1";
-            this.Text = "Form1";
-            this.Load += new System.EventHandler(this.Form1_Load);
-            ((System.ComponentModel.ISupportInitialize)(this.ImagBienvenida)).EndInit();
+            this.Text = "QUIZTEAM";
+            this.Load += new System.EventHandler(this.Form1_Load); // ¡ESTA LÍNEA ES IMPORTANTE!
             this.ResumeLayout(false);
-            this.PerformLayout();
-
         }
-
         #endregion
-
-        private System.Windows.Forms.TextBox textBox1;
-        private System.Windows.Forms.Button BotComenzar;
-        private System.Windows.Forms.Button BotSalir;
-        private System.Windows.Forms.PictureBox ImagBienvenida;
     }
 }
-
