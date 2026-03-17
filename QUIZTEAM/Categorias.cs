@@ -126,6 +126,29 @@ namespace QUIZTEAM
             }
         }
 
+        private void DrawBotonSimple(Graphics g, Rectangle r, string texto)
+        {
+            DrawRoundRect(g, r, 14, Color.Transparent, Color.FromArgb(85, 85, 85));
+            using (Font f = new Font("Georgia", 11))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                g.DrawString(texto, f, br, r, sf);
+            }
+        }
+
+        private void DrawRoundRect(Graphics g, Rectangle r, int radio, Color fill, Color borde)
+        {
+            GraphicsPath path = new GraphicsPath();
+            path.AddArc(r.X, r.Y, radio * 2, radio * 2, 180, 90);
+            path.AddArc(r.Right - radio * 2, r.Y, radio * 2, radio * 2, 270, 90);
+            path.AddArc(r.Right - radio * 2, r.Bottom - radio * 2, radio * 2, radio * 2, 0, 90);
+            path.AddArc(r.X, r.Bottom - radio * 2, radio * 2, radio * 2, 90, 90);
+            path.CloseAllFigures();
+            if (fill != Color.Transparent)
+                using (SolidBrush br = new SolidBrush(fill)) g.FillPath(br, path);
+            using (Pen p = new Pen(borde, 1.5f)) g.DrawPath(p, path);
+        }
 
 
     }
