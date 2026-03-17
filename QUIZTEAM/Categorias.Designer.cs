@@ -29,7 +29,6 @@
         private void InitializeComponent()
         {
             this.SuspendLayout();
-            
             // 
             // Categorias
             // 
