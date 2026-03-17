@@ -1,4 +1,6 @@
-﻿namespace QUIZTEAM
+﻿using System;
+
+namespace QUIZTEAM
 {
     partial class Categorias
     {
@@ -37,7 +39,6 @@
             this.ClientSize = new System.Drawing.Size(780, 500); // Ajustado al tamaño de tu código
             this.Name = "Categorias";
             this.Text = "Categorias";
-            this.Load += new System.EventHandler(this.Form1_Load);
             this.ResumeLayout(false);
         }
         #endregion
