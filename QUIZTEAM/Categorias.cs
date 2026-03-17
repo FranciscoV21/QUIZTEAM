@@ -151,5 +151,36 @@ namespace QUIZTEAM
         }
 
 
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+            foreach (var (nombre, rect) in _categorias)
+            {
+                if (rect.Contains(e.Location))
+                {
+                    var juego = new Juego(nombre);
+                    juego.FormClosed += (s, args) => { this.Show(); };
+                    juego.Show();
+                    this.Hide();
+                    return;
+                }
+            }
+            if (new Rectangle(30, 455, 100, 30).Contains(e.Location))
+            {
+                this.Close();
+            }
+        }
+
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool sobreCategoria = false;
+            foreach (var (_, rect) in _categorias)
+                if (rect.Contains(e.Location)) { sobreCategoria = true; break; }
+            this.Cursor = sobreCategoria ? Cursors.Hand : Cursors.Default;
+        }
+    }
+}
+
     }
 }
