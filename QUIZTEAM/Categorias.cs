@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -66,6 +67,64 @@ namespace QUIZTEAM
             }
         }
 
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            g.Clear(Color.FromArgb(26, 26, 46));
+
+            // Título
+            using (Font fT = new Font("Georgia", 20, FontStyle.Bold))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(234, 234, 234)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                g.DrawString("Elige una categoría", fT, br, new RectangleF(0, 28, 780, 40), sf);
+            }
+
+            // Línea
+            using (Pen p = new Pen(Color.FromArgb(233, 69, 96), 2))
+                g.DrawLine(p, 200, 72, 580, 72);
+
+            // Tarjetas de categorías
+            string[] iconos = { "★", "◉", "♪", "⬡", "⊕", "◈", "⌘", "◆" };
+            for (int i = 0; i < _categorias.Count; i++)
+            {
+                var (nombre, rect) = _categorias[i];
+                DrawTarjetaCategoria(g, rect, nombre, iconos[i % iconos.Length]);
+            }
+
+            // Botón volver
+            var rectVolver = new Rectangle(30, 455, 100, 30);
+            DrawBotonSimple(g, rectVolver, "← Volver");
+        }
+
+        private void DrawTarjetaCategoria(Graphics g, Rectangle r, string nombre, string icono)
+        {
+            DrawRoundRect(g, r, 10, Color.FromArgb(15, 33, 62), Color.FromArgb(233, 69, 96));
+
+            using (Font fIco = new Font("Arial", 18, FontStyle.Bold))
+            using (SolidBrush brIco = new SolidBrush(Color.FromArgb(233, 69, 96)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                g.DrawString(icono, fIco, brIco, new RectangleF(r.X, r.Y + 8, r.Width, 30), sf);
+            }
+
+            using (Font fNombre = new Font("Georgia", 12, FontStyle.Bold))
+            using (SolidBrush brN = new SolidBrush(Color.FromArgb(234, 234, 234)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                g.DrawString(nombre, fNombre, brN, new RectangleF(r.X, r.Y + 44, r.Width, 24), sf);
+            }
+
+            using (Font fSub = new Font("Consolas", 9))
+            using (SolidBrush brS = new SolidBrush(Color.FromArgb(136, 146, 164)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                g.DrawString("10 preguntas", fSub, brS, new RectangleF(r.X, r.Y + 68, r.Width, 18), sf);
+            }
+        }
 
 
 
