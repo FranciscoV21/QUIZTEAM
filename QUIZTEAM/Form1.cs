@@ -6,6 +6,7 @@ using System.Windows.Forms;
 
 namespace QUIZTEAM
 {
+    //Hola
     public partial class Form1 : Form
     {
         private Image _imgBienvenida;
@@ -122,6 +123,11 @@ namespace QUIZTEAM
             base.OnMouseMove(e);
             this.Cursor = (_zonaComenzon.Contains(e.Location) || _zonaSalir.Contains(e.Location))
                 ? Cursors.Hand : Cursors.Default;
+        }
+
+        private void ImagBienvenida_Click(object sender, EventArgs e)
+        {
+
         }
     }
 }
