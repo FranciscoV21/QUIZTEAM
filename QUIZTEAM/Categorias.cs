@@ -151,7 +151,7 @@ namespace QUIZTEAM
         }
 
 
-        /*protected override void OnMouseClick(MouseEventArgs e)
+        protected override void OnMouseClick(MouseEventArgs e)
         {
             base.OnMouseClick(e);
             foreach (var (nombre, rect) in _categorias)
@@ -178,6 +178,6 @@ namespace QUIZTEAM
             foreach (var (_, rect) in _categorias)
                 if (rect.Contains(e.Location)) { sobreCategoria = true; break; }
             this.Cursor = sobreCategoria ? Cursors.Hand : Cursors.Default;
-        }*/
+        }
     }
 }
