@@ -7,7 +7,8 @@ namespace TestDB
     {
         static void Main(string[] args)
         {
-            EjecutarScript();
+            EjecutarScript();      // crea la base y llena datos
+            MostrarPreguntas();    // muestra las preguntas en consola
         }
 
         static void EjecutarScript()
@@ -48,11 +49,8 @@ CREATE TABLE IF NOT EXISTS partidas (
   fecha DATETIME DEFAULT NOW()
 );
 ";
-
                     using (var cmd = new MySqlCommand(sqlTables, conn))
-                    {
                         cmd.ExecuteNonQuery();
-                    }
 
                     // =============================================
                     // CATEGORIAS
@@ -66,9 +64,7 @@ INSERT IGNORE INTO categorias (id, nombre) VALUES
 (5,'Arte');
 ";
                     using (var cmd = new MySqlCommand(sqlCategorias, conn))
-                    {
                         cmd.ExecuteNonQuery();
-                    }
 
                     // =============================================
                     // PREGUNTAS DE TEXTO
@@ -106,11 +102,8 @@ INSERT INTO preguntas (categoria_id, texto, tipo, opcion1, opcion2, opcion3, opc
 (5,'¿Cómo se llama la técnica de pintura sobre yeso húmedo?','texto','Óleo','Acuarela','Fresco','Acrílico',3),
 (5,'¿Quién esculpió el David?','texto','Donatello','Bernini','Rodin','Miguel Ángel',4);
 ";
-
                     using (var cmd = new MySqlCommand(sqlPreguntasTexto, conn))
-                    {
                         cmd.ExecuteNonQuery();
-                    }
 
                     // =============================================
                     // PREGUNTAS DE IMAGEN
@@ -119,32 +112,10 @@ INSERT INTO preguntas (categoria_id, texto, tipo, opcion1, opcion2, opcion3, opc
 INSERT IGNORE INTO preguntas (categoria_id, texto, tipo, opcion1, opcion2, opcion3, opcion4, img1, img2, img3, img4, correcta) VALUES
 (1,'¿Cuál de estas imágenes muestra la Torre Eiffel?','imagen','Torre Eiffel','Big Ben','Coliseo','Sagrada Familia','eiffel.jpg','bigben.jpg','coliseo.jpg','sagrada.jpg',1),
 (1,'¿Cuál imagen corresponde a Napoleón Bonaparte?','imagen','Napoleón','Julio César','Alejandro Magno','Carlomagno','napoleon.jpg','cesar.jpg','alejandro.jpg','carlomagno.jpg',1),
-(1,'¿Cuál de estas banderas pertenece a Francia?','imagen','Alemania','Italia','Francia','Países Bajos','bandera_alemania.jpg','bandera_italia.jpg','bandera_francia.jpg','bandera_paisesbajos.jpg',3),
-(1,'¿Cuál imagen muestra la Estatua de la Libertad?','imagen','Cristo Redentor','Estatua de la Libertad','La Marsellesa','Moái','cristo.jpg','libertad.jpg','marsellesa.jpg','moai.jpg',2),
-(2,'¿Cuál imagen muestra una cancha de baloncesto?','imagen','Fútbol','Tenis','Baloncesto','Béisbol','cancha_futbol.jpg','cancha_tenis.jpg','cancha_basket.jpg','cancha_beisbol.jpg',3),
-(2,'¿Cuál de estos atletas es Usain Bolt?','imagen','Michael Phelps','Usain Bolt','Carl Lewis','Mo Farah','phelps.jpg','bolt.jpg','lewis.jpg','farah.jpg',2),
-(2,'¿Cuál imagen muestra una pelota de rugby?','imagen','Fútbol americano','Rugby','Voleibol','Waterpolo','pelota_americano.jpg','pelota_rugby.jpg','pelota_volei.jpg','pelota_water.jpg',2),
-(2,'¿Cuál imagen corresponde al logo de los Juegos Olímpicos?','imagen','FIFA','UEFA','Olímpicos','NBA','logo_fifa.jpg','logo_uefa.jpg','logo_olimpicos.jpg','logo_nba.jpg',3),
-(3,'¿Cuál imagen muestra un violín?','imagen','Cello','Viola','Violín','Contrabajo','cello.jpg','viola.jpg','violin.jpg','contrabajo.jpg',3),
-(3,'¿Cuál de estas es la imagen de Michael Jackson?','imagen','Prince','Michael Jackson','James Brown','Stevie Wonder','prince.jpg','mjackson.jpg','jbrown.jpg','swonder.jpg',2),
-(3,'¿Cuál imagen muestra una batería completa?','imagen','Piano','Batería','Órgano','Sintetizador','piano.jpg','bateria.jpg','organo.jpg','sinte.jpg',2),
-(3,'¿Cuál imagen corresponde al logo de Spotify?','imagen','Apple Music','YouTube Music','Spotify','Deezer','logo_apple.jpg','logo_ytmusic.jpg','logo_spotify.jpg','logo_deezer.jpg',3),
-(3,'¿Cuál de estas imágenes muestra una trompeta?','imagen','Trombón','Tuba','Corno francés','Trompeta','trombon.jpg','tuba.jpg','corno.jpg','trompeta.jpg',4),
-(4,'¿Cuál imagen muestra el Monte Everest?','imagen','Mont Blanc','Kilimanjaro','Monte Everest','Aconcagua','montblanc.jpg','kilimanjaro.jpg','everest.jpg','aconcagua.jpg',3),
-(4,'¿Cuál de estos mapas muestra a Brasil?','imagen','Argentina','Colombia','Perú','Brasil','mapa_argentina.jpg','mapa_colombia.jpg','mapa_peru.jpg','mapa_brasil.jpg',4),
-(4,'¿Cuál imagen muestra el desierto del Sahara?','imagen','Gobi','Atacama','Sahara','Kalahari','desierto_gobi.jpg','desierto_atacama.jpg','desierto_sahara.jpg','desierto_kalahari.jpg',3),
-(4,'¿Cuál de estas imágenes muestra las Cataratas del Niágara?','imagen','Iguazú','Victoria','Niágara','Ángel','iguazu.jpg','victoria.jpg','niagara.jpg','angel.jpg',3),
-(5,'¿Cuál de estas imágenes es ""La noche estrellada"" de Van Gogh?','imagen','Los girasoles','La noche estrellada','El grito','La persistencia de la memoria','girasoles.jpg','noche_estrellada.jpg','el_grito.jpg','persistencia.jpg',2),
-(5,'¿Cuál imagen muestra ""El grito"" de Edvard Munch?','imagen','El grito','Saturno devorando','La balsa de la Medusa','La libertad guiando','el_grito.jpg','saturno.jpg','balsa.jpg','libertad.jpg',1),
-(5,'¿Cuál de estas pinturas es obra de Salvador Dalí?','imagen','La persistencia de la memoria','Guernica','Las Meninas','El jardín de las delicias','persistencia.jpg','guernica.jpg','meninas.jpg','jardin.jpg',1),
-(5,'¿Cuál imagen muestra la escultura ""El pensador"" de Rodin?','imagen','El pensador','La piedad','El beso','Discóbolo','pensador.jpg','piedad.jpg','el_beso.jpg','discobolo.jpg',1),
-(5,'¿Cuál de estas imágenes es el cuadro ""Guernica"" de Picasso?','imagen','Las señoritas de Aviñón','El Guernica','Composición VIII','Número 31','aviñon.jpg','guernica.jpg','composicion.jpg','numero31.jpg',2);
+(1,'¿Cuál de estas banderas pertenece a Francia?','imagen','Alemania','Italia','Francia','Países Bajos','bandera_alemania.jpg','bandera_italia.jpg','bandera_francia.jpg','bandera_paisesbajos.jpg',3);
 ";
-
                     using (var cmd = new MySqlCommand(sqlPreguntasImagen, conn))
-                    {
                         cmd.ExecuteNonQuery();
-                    }
 
                     Console.WriteLine("BD creada y todas las preguntas agregadas correctamente");
                 }
@@ -152,6 +123,52 @@ INSERT IGNORE INTO preguntas (categoria_id, texto, tipo, opcion1, opcion2, opcio
             catch (Exception ex)
             {
                 Console.WriteLine("Error: " + ex.Message);
+            }
+        }
+
+        // =============================================
+        // FUNCIÓN PARA VISUALIZAR PREGUNTAS
+        // =============================================
+        static void MostrarPreguntas()
+        {
+            try
+            {
+                using (var conn = DB.GetConnection())
+                {
+                    conn.Open();
+
+                    string sql = @"
+SELECT p.id, c.nombre AS categoria, p.texto, p.tipo,
+       p.opcion1, p.opcion2, p.opcion3, p.opcion4,
+       p.img1, p.img2, p.img3, p.img4, p.correcta
+FROM preguntas p
+JOIN categorias c ON p.categoria_id = c.id
+ORDER BY p.id
+LIMIT 50; -- limita a las primeras 50 preguntas
+";
+
+                    using (var cmd = new MySqlCommand(sql, conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        Console.WriteLine("ID | Categoria | Tipo | Texto | Correcta");
+                        Console.WriteLine("---------------------------------------------------------");
+
+                        while (reader.Read())
+                        {
+                            int id = reader.GetInt32("id");
+                            string categoria = reader.GetString("categoria");
+                            string tipo = reader.GetString("tipo");
+                            string texto = reader.GetString("texto");
+                            int correcta = reader.GetInt32("correcta");
+
+                            Console.WriteLine($"{id} | {categoria} | {tipo} | {texto} | {correcta}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al mostrar preguntas: " + ex.Message);
             }
         }
     }
