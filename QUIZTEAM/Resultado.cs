@@ -5,7 +5,7 @@ using System.Windows.Forms;
 
 namespace QUIZTEAM
 {
-    public class Resultado : Form
+    public partial class Resultado : Form
     {
         private string _categoria;
         private int _correctas, _total;
