@@ -19,9 +19,6 @@ namespace TestDB
                 {
                     conn.Open();
 
-                    // ==============================
-                    // TABLAS
-                    // ==============================
                     string sqlTables = @"
 CREATE TABLE IF NOT EXISTS categorias (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -51,9 +48,6 @@ CREATE TABLE IF NOT EXISTS partidas (
 ";
                     new MySqlCommand(sqlTables, conn).ExecuteNonQuery();
 
-                    // ==============================
-                    // CATEGORIAS
-                    // ==============================
                     string sqlCategorias = @"
 INSERT IGNORE INTO categorias (id, nombre) VALUES
 (1,'Historia'),
@@ -64,15 +58,10 @@ INSERT IGNORE INTO categorias (id, nombre) VALUES
 ";
                     new MySqlCommand(sqlCategorias, conn).ExecuteNonQuery();
 
-                    // ==============================
-                    // LIMPIAR Y REINICIAR IDs
-                    // ==============================
+                    // 🔥 SIEMPRE BORRA Y REINICIA
                     new MySqlCommand("DELETE FROM preguntas;", conn).ExecuteNonQuery();
                     new MySqlCommand("ALTER TABLE preguntas AUTO_INCREMENT = 1;", conn).ExecuteNonQuery();
 
-                    // ==============================
-                    // PREGUNTAS TEXTO
-                    // ==============================
                     string sqlTexto = @"INSERT INTO preguntas 
 (categoria_id, texto, tipo, opcion1, opcion2, opcion3, opcion4, correcta) VALUES
 
@@ -96,21 +85,29 @@ INSERT IGNORE INTO categorias (id, nombre) VALUES
 ";
                     new MySqlCommand(sqlTexto, conn).ExecuteNonQuery();
 
-                    // ==============================
-                    // PREGUNTAS IMAGEN (COMPLETAS)
-                    // ==============================
+                    // 🔥 IMÁGENES BIEN DEFINIDAS
                     string sqlImagen = @"INSERT INTO preguntas 
 (categoria_id, texto, tipo, opcion1, opcion2, opcion3, opcion4, img1, img2, img3, img4, correcta) VALUES
 
-(1,'¿Cuál imagen es la Torre Eiffel?','imagen','Eiffel','Big Ben','Coliseo','Sagrada','eiffel.jpg','bigben.jpg','coliseo.jpg','sagrada.jpg',1),
+(1,'¿Cuál imagen es la Torre Eiffel?','imagen',
+'Torre Eiffel','Big Ben','Coliseo','Sagrada Familia',
+'eiffel.jpg','bigben.jpg','coliseo.jpg','sagrada.jpg',1),
 
-(2,'¿Quién es Usain Bolt?','imagen','Phelps','Bolt','Lewis','Farah','phelps.jpg','bolt.jpg','lewis.jpg','farah.jpg',2),
+(2,'¿Quién es Usain Bolt?','imagen',
+'Michael Phelps','Usain Bolt','Carl Lewis','Mo Farah',
+'phelps.jpg','bolt.jpg','lewis.jpg','farah.jpg',2),
 
-(3,'¿Cuál es el logo de Spotify?','imagen','Apple','YT','Spotify','Deezer','a.jpg','b.jpg','spotify.jpg','d.jpg',3),
+(3,'¿Cuál es el logo de Spotify?','imagen',
+'Apple Music','YouTube Music','Spotify','Deezer',
+'applemusic.jpg','ytmusic.jpg','spotify.jpg','deezer.jpg',3),
 
-(4,'¿Dónde está el Everest?','imagen','Mont Blanc','Kilimanjaro','Everest','Aconcagua','a.jpg','b.jpg','c.jpg','d.jpg',3),
+(4,'¿Dónde está el Everest?','imagen',
+'Mont Blanc','Kilimanjaro','Everest','Aconcagua',
+'montblanc.jpg','kilimanjaro.jpg','everest.jpg','aconcagua.jpg',3),
 
-(5,'¿Cuál es La noche estrellada?','imagen','Girasoles','Noche','Grito','Memoria','a.jpg','b.jpg','c.jpg','d.jpg',2);
+(5,'¿Cuál es La noche estrellada?','imagen',
+'Girasoles','Noche estrellada','El grito','Persistencia de la memoria',
+'girasoles.jpg','noche_estrellada.jpg','grito.jpg','persistencia.jpg',2);
 ";
                     new MySqlCommand(sqlImagen, conn).ExecuteNonQuery();
 
