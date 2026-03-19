@@ -7,8 +7,8 @@ namespace TestDB
     {
         static void Main(string[] args)
         {
-            EjecutarScript();      // crea la base y llena datos
-            MostrarPreguntas();    // muestra las preguntas en consola
+            EjecutarScript();
+            MostrarPreguntas();
         }
 
         static void EjecutarScript()
@@ -19,9 +19,9 @@ namespace TestDB
                 {
                     conn.Open();
 
-                    // =============================================
-                    // CREAR TABLAS
-                    // =============================================
+                    // ==============================
+                    // TABLAS
+                    // ==============================
                     string sqlTables = @"
 CREATE TABLE IF NOT EXISTS categorias (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS preguntas (
   opcion3 VARCHAR(200), opcion4 VARCHAR(200),
   img1 VARCHAR(200), img2 VARCHAR(200),
   img3 VARCHAR(200), img4 VARCHAR(200),
-  correcta TINYINT NOT NULL COMMENT '1=opcion1, 2=opcion2, 3=opcion3, 4=opcion4',
+  correcta TINYINT NOT NULL,
   FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );
 
@@ -49,12 +49,11 @@ CREATE TABLE IF NOT EXISTS partidas (
   fecha DATETIME DEFAULT NOW()
 );
 ";
-                    using (var cmd = new MySqlCommand(sqlTables, conn))
-                        cmd.ExecuteNonQuery();
+                    new MySqlCommand(sqlTables, conn).ExecuteNonQuery();
 
-                    // =============================================
+                    // ==============================
                     // CATEGORIAS
-                    // =============================================
+                    // ==============================
                     string sqlCategorias = @"
 INSERT IGNORE INTO categorias (id, nombre) VALUES
 (1,'Historia'),
@@ -63,61 +62,59 @@ INSERT IGNORE INTO categorias (id, nombre) VALUES
 (4,'Geografía'),
 (5,'Arte');
 ";
-                    using (var cmd = new MySqlCommand(sqlCategorias, conn))
-                        cmd.ExecuteNonQuery();
+                    new MySqlCommand(sqlCategorias, conn).ExecuteNonQuery();
 
-                    // =============================================
-                    // PREGUNTAS DE TEXTO
-                    // =============================================
-                    string sqlPreguntasTexto = @"
-DELETE FROM preguntas;
+                    // ==============================
+                    // LIMPIAR Y REINICIAR IDs
+                    // ==============================
+                    new MySqlCommand("DELETE FROM preguntas;", conn).ExecuteNonQuery();
+                    new MySqlCommand("ALTER TABLE preguntas AUTO_INCREMENT = 1;", conn).ExecuteNonQuery();
 
-INSERT INTO preguntas (categoria_id, texto, tipo, opcion1, opcion2, opcion3, opcion4, correcta) VALUES
+                    // ==============================
+                    // PREGUNTAS TEXTO
+                    // ==============================
+                    string sqlTexto = @"INSERT INTO preguntas 
+(categoria_id, texto, tipo, opcion1, opcion2, opcion3, opcion4, correcta) VALUES
+
 (1,'¿En qué año llegó Cristóbal Colón a América?','texto','1392','1492','1592','1292',2),
 (1,'¿Qué civilización construyó las pirámides de Giza?','texto','La romana','La griega','La egipcia','La mesopotámica',3),
 (1,'¿Quién fue el primer presidente de los Estados Unidos?','texto','Abraham Lincoln','Thomas Jefferson','Benjamin Franklin','George Washington',4),
 (1,'¿En qué año comenzó la Primera Guerra Mundial?','texto','1914','1918','1905','1939',1),
 (1,'¿Qué muro separó a Alemania del Este y Oeste durante la Guerra Fría?','texto','El Muro de Adriano','La Gran Muralla','El Muro de Berlín','El Muro de Varsovia',3),
-(1,'¿A qué país perteneció México antes de su independencia en 1821?','texto','Portugal','Francia','Reino Unido','España',4),
+
 (2,'¿Cuántos jugadores tiene un equipo de fútbol en el campo?','texto','9','10','11','12',3),
 (2,'¿En qué país se originó el béisbol?','texto','Cuba','México','Canadá','Estados Unidos',4),
-(2,'¿Cada cuántos años se celebra el Mundial de Fútbol?','texto','2 años','4 años','6 años','3 años',2),
-(2,'¿Cuál deporte se juega con una raqueta y una pelota amarilla sobre césped?','texto','Bádminton','Squash','Tenis','Ping-pong',3),
-(2,'¿Qué país ganó el Mundial de Fútbol de 2022 en Qatar?','texto','Brasil','Francia','Alemania','Argentina',4),
-(2,'¿Cuántos anillos tiene el símbolo olímpico?','texto','4','6','5','3',3),
-(3,'¿Cuántas cuerdas tiene una guitarra estándar?','texto','4','5','7','6',4),
-(3,'¿Qué banda británica fue conocida como Los Fab Four?','texto','The Rolling Stones','The Beatles','Led Zeppelin','The Who',2),
-(3,'¿Quién compuso la Quinta Sinfonía?','texto','Mozart','Bach','Beethoven','Chopin',3),
-(3,'¿Qué instrumento toca un pianista?','texto','Violín','Clarinete','Piano','Arpa',3),
-(3,'¿De qué país es originario el flamenco?','texto','Argentina','México','Italia','España',4),
-(4,'¿Cuál es la capital de Australia?','texto','Sídney','Melbourne','Canberra','Brisbane',3),
-(4,'¿Cuál es el río más largo del mundo?','texto','Amazonas','Nilo','Yangtsé','Mississippi',2),
-(4,'¿En qué continente se encuentra Egipto?','texto','Asia','Europa','América','África',4),
-(4,'¿Cuál es el océano más grande del mundo?','texto','Atlántico','Índico','Pacífico','Ártico',3),
-(4,'¿Cuál es el país más grande del mundo?','texto','China','Canadá','EEUU','Rusia',4),
-(4,'¿Cuántos países forman América del Sur?','texto','10','12','14','9',2),
-(5,'¿Quién pintó la Mona Lisa?','texto','Miguel Ángel','Rafael','Leonardo da Vinci','Botticelli',3),
-(5,'¿En qué museo se exhibe la Mona Lisa?','texto','Prado','Louvre','Hermitage','MoMA',2),
-(5,'¿Qué artista español es famoso por el cubismo?','texto','Dalí','Goya','Miró','Picasso',4),
-(5,'¿Cómo se llama la técnica de pintura sobre yeso húmedo?','texto','Óleo','Acuarela','Fresco','Acrílico',3),
-(5,'¿Quién esculpió el David?','texto','Donatello','Bernini','Rodin','Miguel Ángel',4);
-";
-                    using (var cmd = new MySqlCommand(sqlPreguntasTexto, conn))
-                        cmd.ExecuteNonQuery();
+(2,'¿Cada cuántos años se celebra el Mundial?','texto','2','4','6','3',2),
 
-                    // =============================================
-                    // PREGUNTAS DE IMAGEN
-                    // =============================================
-                    string sqlPreguntasImagen = @"
-INSERT IGNORE INTO preguntas (categoria_id, texto, tipo, opcion1, opcion2, opcion3, opcion4, img1, img2, img3, img4, correcta) VALUES
-(1,'¿Cuál de estas imágenes muestra la Torre Eiffel?','imagen','Torre Eiffel','Big Ben','Coliseo','Sagrada Familia','eiffel.jpg','bigben.jpg','coliseo.jpg','sagrada.jpg',1),
-(1,'¿Cuál imagen corresponde a Napoleón Bonaparte?','imagen','Napoleón','Julio César','Alejandro Magno','Carlomagno','napoleon.jpg','cesar.jpg','alejandro.jpg','carlomagno.jpg',1),
-(1,'¿Cuál de estas banderas pertenece a Francia?','imagen','Alemania','Italia','Francia','Países Bajos','bandera_alemania.jpg','bandera_italia.jpg','bandera_francia.jpg','bandera_paisesbajos.jpg',3);
-";
-                    using (var cmd = new MySqlCommand(sqlPreguntasImagen, conn))
-                        cmd.ExecuteNonQuery();
+(3,'¿Cuántas cuerdas tiene una guitarra?','texto','4','5','7','6',4),
+(3,'¿Qué banda fue Los Fab Four?','texto','Rolling Stones','The Beatles','Queen','U2',2),
 
-                    Console.WriteLine("BD creada y todas las preguntas agregadas correctamente");
+(4,'¿Capital de Australia?','texto','Sídney','Melbourne','Canberra','Brisbane',3),
+(4,'¿Río más largo?','texto','Amazonas','Nilo','Yangtsé','Mississippi',2),
+
+(5,'¿Quién pintó la Mona Lisa?','texto','Miguel Ángel','Rafael','Leonardo da Vinci','Botticelli',3);
+";
+                    new MySqlCommand(sqlTexto, conn).ExecuteNonQuery();
+
+                    // ==============================
+                    // PREGUNTAS IMAGEN (COMPLETAS)
+                    // ==============================
+                    string sqlImagen = @"INSERT INTO preguntas 
+(categoria_id, texto, tipo, opcion1, opcion2, opcion3, opcion4, img1, img2, img3, img4, correcta) VALUES
+
+(1,'¿Cuál imagen es la Torre Eiffel?','imagen','Eiffel','Big Ben','Coliseo','Sagrada','eiffel.jpg','bigben.jpg','coliseo.jpg','sagrada.jpg',1),
+
+(2,'¿Quién es Usain Bolt?','imagen','Phelps','Bolt','Lewis','Farah','phelps.jpg','bolt.jpg','lewis.jpg','farah.jpg',2),
+
+(3,'¿Cuál es el logo de Spotify?','imagen','Apple','YT','Spotify','Deezer','a.jpg','b.jpg','spotify.jpg','d.jpg',3),
+
+(4,'¿Dónde está el Everest?','imagen','Mont Blanc','Kilimanjaro','Everest','Aconcagua','a.jpg','b.jpg','c.jpg','d.jpg',3),
+
+(5,'¿Cuál es La noche estrellada?','imagen','Girasoles','Noche','Grito','Memoria','a.jpg','b.jpg','c.jpg','d.jpg',2);
+";
+                    new MySqlCommand(sqlImagen, conn).ExecuteNonQuery();
+
+                    Console.WriteLine("BD limpia y datos insertados correctamente");
                 }
             }
             catch (Exception ex)
@@ -126,9 +123,6 @@ INSERT IGNORE INTO preguntas (categoria_id, texto, tipo, opcion1, opcion2, opcio
             }
         }
 
-        // =============================================
-        // FUNCIÓN PARA VISUALIZAR PREGUNTAS
-        // =============================================
         static void MostrarPreguntas()
         {
             try
@@ -138,13 +132,10 @@ INSERT IGNORE INTO preguntas (categoria_id, texto, tipo, opcion1, opcion2, opcio
                     conn.Open();
 
                     string sql = @"
-SELECT p.id, c.nombre AS categoria, p.texto, p.tipo,
-       p.opcion1, p.opcion2, p.opcion3, p.opcion4,
-       p.img1, p.img2, p.img3, p.img4, p.correcta
+SELECT p.id, c.nombre AS categoria, p.texto, p.tipo, p.correcta
 FROM preguntas p
 JOIN categorias c ON p.categoria_id = c.id
-ORDER BY p.id
-LIMIT 50; -- limita a las primeras 50 preguntas
+ORDER BY p.id;
 ";
 
                     using (var cmd = new MySqlCommand(sql, conn))
@@ -155,13 +146,7 @@ LIMIT 50; -- limita a las primeras 50 preguntas
 
                         while (reader.Read())
                         {
-                            int id = reader.GetInt32("id");
-                            string categoria = reader.GetString("categoria");
-                            string tipo = reader.GetString("tipo");
-                            string texto = reader.GetString("texto");
-                            int correcta = reader.GetInt32("correcta");
-
-                            Console.WriteLine($"{id} | {categoria} | {tipo} | {texto} | {correcta}");
+                            Console.WriteLine($"{reader["id"]} | {reader["categoria"]} | {reader["tipo"]} | {reader["texto"]} | {reader["correcta"]}");
                         }
                     }
                 }
