@@ -229,4 +229,57 @@ namespace QUIZTEAM
                 g.DrawString(badge, f, br, new RectangleF(0, 174, 780, 20), sf);
             }
         }
+        private void DibujarOpcionesTexto(Graphics g, Pregunta p)
+        {
+            string[] letras = { "A", "B", "C", "D" };
+            for (int i = 0; i < 4; i++)
+            {
+                var r = _zonasOpciones[i];
+                Color fill = Color.FromArgb(15, 52, 96);
+                Color borde = Color.FromArgb(51, 51, 85);
+                Color colorTexto = Color.FromArgb(234, 234, 234);
+
+                if (_respondida)
+                {
+                    if (i == p.IndiceCorrecta)
+                    { fill = Color.FromArgb(27, 77, 46); borde = Color.FromArgb(39, 174, 96); }
+                    else if (i == _seleccion)
+                    { fill = Color.FromArgb(77, 26, 26); borde = Color.FromArgb(233, 69, 96); }
+                }
+                else if (i == _seleccion)
+                {
+                    fill = Color.FromArgb(15, 52, 110); borde = Color.FromArgb(233, 69, 96);
+                }
+
+                DrawRoundRect(g, r, 10, fill, borde);
+
+                // Letra
+                using (Font fL = new Font("Georgia", 13, FontStyle.Bold))
+                using (SolidBrush brL = new SolidBrush(Color.FromArgb(233, 69, 96)))
+                    g.DrawString(letras[i], fL, brL, r.X + 14, r.Y + (r.Height - 20) / 2);
+
+                // Texto opción
+                using (Font fO = new Font("Georgia", 13))
+                using (SolidBrush brO = new SolidBrush(colorTexto))
+                {
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    g.DrawString(p.Opciones[i], fO, brO,
+                        new RectangleF(r.X + 34, r.Y, r.Width - 34, r.Height), sf);
+                }
+
+                // Icono correcto/incorrecto
+                if (_respondida)
+                {
+                    string icono = i == p.IndiceCorrecta ? "✓" : (i == _seleccion ? "✗" : "");
+                    if (icono != "")
+                    {
+                        Color cIco = i == p.IndiceCorrecta
+                            ? Color.FromArgb(39, 174, 96) : Color.FromArgb(233, 69, 96);
+                        using (Font fIco = new Font("Arial", 16, FontStyle.Bold))
+                        using (SolidBrush brIco = new SolidBrush(cIco))
+                            g.DrawString(icono, fIco, brIco, r.Right - 28, r.Y + (r.Height - 22) / 2);
+                    }
+                }
+            }
+        }
     }
