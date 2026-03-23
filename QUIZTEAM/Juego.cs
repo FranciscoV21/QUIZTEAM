@@ -18,7 +18,7 @@ namespace QUIZTEAM
         public int IndiceCorrecta { get; set; }
     }
 
-    public class Juego : Form
+    public partial class Juego : Form
     {
         private string _categoria;
         private List<Pregunta> _preguntas = new List<Pregunta>();

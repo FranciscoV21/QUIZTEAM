@@ -23,6 +23,7 @@ namespace QUIZTEAM
             this.ClientSize = new Size(780, 500);
             this.Text = "Categorías";
             this.BackColor = Color.FromArgb(26, 26, 46);
+            this.Load += new EventHandler(Categorias_Load);
         }
 
         private void Categorias_Load(object sender, EventArgs e)
