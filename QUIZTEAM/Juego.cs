@@ -327,5 +327,64 @@ namespace QUIZTEAM
             }
         }
 
+        private void DrawRoundRect(Graphics g, Rectangle r, int radio, Color fill, Color borde)
+        {
+            if (r.Width <= 0 || r.Height <= 0) return;
+            var path = new GraphicsPath();
+            path.AddArc(r.X, r.Y, radio * 2, radio * 2, 180, 90);
+            path.AddArc(r.Right - radio * 2, r.Y, radio * 2, radio * 2, 270, 90);
+            path.AddArc(r.Right - radio * 2, r.Bottom - radio * 2, radio * 2, radio * 2, 0, 90);
+            path.AddArc(r.X, r.Bottom - radio * 2, radio * 2, radio * 2, 90, 90);
+            path.CloseAllFigures();
+            if (fill != Color.Transparent)
+                using (SolidBrush br = new SolidBrush(fill)) g.FillPath(br, path);
+            if (borde != Color.Transparent)
+                using (Pen pen = new Pen(borde, 1.5f)) g.DrawPath(pen, path);
+        }
+
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            base.OnMouseClick(e);
+            if (_preguntas.Count == 0) return;
+
+            // Clic en salir
+            if (_zonaSalir.Contains(e.Location)) { this.Close(); return; }
+
+            // Clic en siguiente
+            if (_respondida && _zonaSiguiente.Contains(e.Location))
+            {
+                if (_indiceActual == _preguntas.Count - 1)
+                    MostrarResultado();
+                else
+                {
+                    _indiceActual++;
+                    _seleccion = -1;
+                    _respondida = false;
+                    CargarImagenesActual();
+                    this.Invalidate();
+                }
+                return;
+            }
+
+            // Clic en opción
+            if (!_respondida)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    if (_zonasOpciones[i].Contains(e.Location))
+                    {
+                        _seleccion = i;
+                        _respondida = true;
+                        if (i == _preguntas[_indiceActual].IndiceCorrecta)
+                            _correctas++;
+                        else
+                            _incorrectas++;
+                        this.Invalidate();
+                        return;
+                    }
+                }
+            }
+        }
+
 
     }
