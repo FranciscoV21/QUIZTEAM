@@ -182,4 +182,21 @@ namespace QUIZTEAM
                 g.DrawString("← Salir", f, br, _zonaSalir, sf);
             }
         }
+
+        private void DibujarHeader(Graphics g, Pregunta p)
+        {
+            using (Font f = new Font("Consolas", 10))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
+                g.DrawString($"▶ QUIZTEAM  /  {_categoria}  —  Pregunta {_indiceActual + 1} de {_preguntas.Count}",
+                    f, br, 30, 18);
+
+            // Score
+            string scoreText = $"✓ {_correctas}   ✗ {_incorrectas}";
+            using (Font f = new Font("Consolas", 11, FontStyle.Bold))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(245, 166, 35)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Far };
+                g.DrawString(scoreText, f, br, new RectangleF(0, 14, 755, 22), sf);
+            }
+        }
     }
