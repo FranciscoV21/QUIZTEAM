@@ -386,5 +386,24 @@ namespace QUIZTEAM
             }
         }
 
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool sobreZona = _zonaSalir.Contains(e.Location) ||
+                (_respondida && _zonaSiguiente.Contains(e.Location));
+            if (!_respondida)
+                foreach (var z in _zonasOpciones)
+                    if (z.Contains(e.Location)) { sobreZona = true; break; }
+            this.Cursor = sobreZona ? Cursors.Hand : Cursors.Default;
+        }
+
+        private void MostrarResultado()
+        {
+            GuardarPartidaBD();
+            var res = new Resultado(_categoria, _correctas, _preguntas.Count);
+            res.FormClosed += (s, args) => this.Close();
+            res.Show();
+            this.Hide();
+        }
 
     }
