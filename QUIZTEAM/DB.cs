@@ -9,7 +9,7 @@ namespace QUIZTEAM
 {
     internal class DB
     {
-        private static string connStr = "Server=gondola.proxy.rlwy.net;Port=42614;Database=railway;Uid=root;Pwd=MNzmTeajpSCLHElCQguamXzDqEkdhZqN;";
+        private static string connStr = "Server=localhost;Database=quiz;Uid=root;Pwd=12345;";
 
         public static MySqlConnection GetConnection()
         {
