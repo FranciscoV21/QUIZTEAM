@@ -199,4 +199,34 @@ namespace QUIZTEAM
                 g.DrawString(scoreText, f, br, new RectangleF(0, 14, 755, 22), sf);
             }
         }
+
+        private void DibujarProgreso(Graphics g)
+        {
+            DrawRoundRect(g, new Rectangle(30, 42, 720, 8), 4,
+                Color.FromArgb(51, 51, 68), Color.Transparent);
+            int ancho = (int)(720.0 * (_indiceActual + 1) / _preguntas.Count);
+            if (ancho > 0)
+                DrawRoundRect(g, new Rectangle(30, 42, ancho, 8), 4,
+                    Color.FromArgb(233, 69, 96), Color.Transparent);
+        }
+
+        private void DibujarPregunta(Graphics g, Pregunta p)
+        {
+            DrawRoundRect(g, new Rectangle(30, 60, 720, 110), 10,
+                Color.FromArgb(22, 33, 62), Color.FromArgb(233, 69, 96));
+            using (Font f = new Font("Georgia", 15, FontStyle.Bold))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(234, 234, 234)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                g.DrawString(p.Texto, f, br, new RectangleF(50, 60, 680, 110), sf);
+            }
+            // Badge tipo
+            string badge = p.Tipo == "imagen" ? "  Selecciona la imagen correcta  " : "  Opción múltiple  ";
+            using (Font f = new Font("Consolas", 9))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                g.DrawString(badge, f, br, new RectangleF(0, 174, 780, 20), sf);
+            }
+        }
     }
