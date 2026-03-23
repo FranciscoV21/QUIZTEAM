@@ -132,5 +132,54 @@ namespace QUIZTEAM
             }
         }
 
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            if (_preguntas.Count == 0) return;
 
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+            g.Clear(Color.FromArgb(26, 26, 46));
+
+            var p = _preguntas[_indiceActual];
+
+            // Header
+            DibujarHeader(g, p);
+
+            // Barra de progreso
+            DibujarProgreso(g);
+
+            // Tarjeta de pregunta
+            DibujarPregunta(g, p);
+
+            // Opciones
+            if (p.Tipo == "imagen")
+                DibujarOpcionesImagen(g, p);
+            else
+                DibujarOpcionesTexto(g, p);
+
+            // Botón siguiente (solo si respondió)
+            if (_respondida)
+            {
+                DrawRoundRect(g, _zonaSiguiente, 20,
+                    Color.FromArgb(233, 69, 96), Color.Transparent);
+                using (Font f = new Font("Georgia", 13, FontStyle.Bold))
+                using (SolidBrush br = new SolidBrush(Color.White))
+                {
+                    var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                    string label = _indiceActual == _preguntas.Count - 1 ? "Ver resultado ▶" : "Siguiente →";
+                    g.DrawString(label, f, br, _zonaSiguiente, sf);
+                }
+            }
+
+            // Botón volver
+            DrawRoundRect(g, _zonaSalir, 17, Color.Transparent, Color.FromArgb(85, 85, 85));
+            using (Font f = new Font("Georgia", 11))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                g.DrawString("← Salir", f, br, _zonaSalir, sf);
+            }
+        }
     }
