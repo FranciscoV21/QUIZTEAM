@@ -406,4 +406,24 @@ namespace QUIZTEAM
             this.Hide();
         }
 
+        private void GuardarPartidaBD()
+        {
+            try
+            {
+                using (var conn = DB.GetConnection())
+                {
+                    conn.Open();
+                    var cmd = new MySqlCommand(
+                        @"INSERT INTO partidas (categoria, correctas, total, fecha)
+                          VALUES (@cat, @cor, @tot, NOW())", conn);
+                    cmd.Parameters.AddWithValue("@cat", _categoria);
+                    cmd.Parameters.AddWithValue("@cor", _correctas);
+                    cmd.Parameters.AddWithValue("@tot", _preguntas.Count);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch { /* silencioso — no interrumpir experiencia */ }
+        }
     }
+
+}
