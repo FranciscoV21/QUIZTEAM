@@ -104,4 +104,33 @@ namespace QUIZTEAM
             }
         }
 
+        private void CalcularZonas()
+        {
+            // 2x2 grid de opciones
+            int ox = 30, ow = 355, oh = 100, gx = 20, gy = 14, startY = 230;
+            _zonasOpciones[0] = new Rectangle(ox, startY, ow, oh);
+            _zonasOpciones[1] = new Rectangle(ox + ow + gx, startY, ow, oh);
+            _zonasOpciones[2] = new Rectangle(ox, startY + oh + gy, ow, oh);
+            _zonasOpciones[3] = new Rectangle(ox + ow + gx, startY + oh + gy, ow, oh);
+            _zonaSiguiente = new Rectangle(270, 460, 240, 40);
+            _zonaSalir = new Rectangle(30, 462, 90, 34);
+        }
+
+        private void CargarImagenesActual()
+        {
+            foreach (var img in _imagenesOpciones) img?.Dispose();
+            _imagenesOpciones.Clear();
+            if (_indiceActual >= _preguntas.Count) return;
+            var p = _preguntas[_indiceActual];
+            if (p.Tipo == "imagen")
+            {
+                foreach (var ruta in p.ImagenesOpciones)
+                {
+                    string fullPath = Path.Combine(Application.StartupPath, "Imagenes", ruta);
+                    _imagenesOpciones.Add(File.Exists(fullPath) ? Image.FromFile(fullPath) : null);
+                }
+            }
+        }
+
+
     }
