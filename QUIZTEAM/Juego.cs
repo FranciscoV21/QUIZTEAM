@@ -282,4 +282,50 @@ namespace QUIZTEAM
                 }
             }
         }
+
+        private void DibujarOpcionesImagen(Graphics g, Pregunta p)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                var r = _zonasOpciones[i];
+                Color borde = Color.FromArgb(51, 51, 85);
+                if (_respondida)
+                {
+                    if (i == p.IndiceCorrecta) borde = Color.FromArgb(39, 174, 96);
+                    else if (i == _seleccion) borde = Color.FromArgb(233, 69, 96);
+                }
+                else if (i == _seleccion) borde = Color.FromArgb(233, 69, 96);
+
+                DrawRoundRect(g, r, 10, Color.FromArgb(15, 33, 62), borde);
+
+                // Imagen
+                var imgArea = new Rectangle(r.X + 4, r.Y + 4, r.Width - 8, r.Height - 8);
+                if (i < _imagenesOpciones.Count && _imagenesOpciones[i] != null)
+                    g.DrawImage(_imagenesOpciones[i], imgArea);
+                else
+                {
+                    using (SolidBrush br = new SolidBrush(Color.FromArgb(30, 40, 60)))
+                        g.FillRectangle(br, imgArea);
+                    using (Font f = new Font("Consolas", 10))
+                    using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
+                    {
+                        var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                        g.DrawString($"Imagen {i + 1}", f, br, imgArea, sf);
+                    }
+                }
+
+                // Checkmark sobre la imagen
+                if (_respondida && (i == p.IndiceCorrecta || i == _seleccion))
+                {
+                    string icono = i == p.IndiceCorrecta ? "✓" : "✗";
+                    Color c = i == p.IndiceCorrecta
+                        ? Color.FromArgb(39, 174, 96) : Color.FromArgb(233, 69, 96);
+                    using (Font fIco = new Font("Arial", 20, FontStyle.Bold))
+                    using (SolidBrush brIco = new SolidBrush(c))
+                        g.DrawString(icono, fIco, brIco, r.Right - 30, r.Y + 4);
+                }
+            }
+        }
+
+
     }
