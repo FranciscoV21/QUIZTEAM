@@ -1,6 +1,8 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 import mysql.connector
+from typing import Dict, List
+import uuid
 
 app = FastAPI()
 
@@ -18,11 +20,22 @@ def get_connection():
     return mysql.connector.connect(**db_config)
 
 # =========================
-# MODELOS (para POST)
+# MODELOS
 # =========================
 class Respuesta(BaseModel):
     id_pregunta: int
     respuesta: int
+
+class Partida(BaseModel):
+    categoria: str
+    correctas: int
+    total: int
+
+# =========================
+# MULTIJUGADOR
+# =========================
+rooms: Dict[str, List[WebSocket]] = {}
+scores: Dict[str, Dict[str, dict]] = {}
 
 # =========================
 # ROOT
@@ -48,117 +61,190 @@ def test_db():
 # =========================
 @app.get("/categorias")
 def get_categorias():
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
 
-        cursor.execute("SELECT id, nombre FROM categorias")
-        data = cursor.fetchall()
+    cursor.execute("SELECT id, nombre FROM categorias")
+    data = cursor.fetchall()
 
-        cursor.close()
-        conn.close()
+    cursor.close()
+    conn.close()
 
-        return data
-
-    except Exception as e:
-        return {"error": str(e)}
+    return data
 
 # =========================
-# PREGUNTAS POR CATEGORIA
+# PREGUNTAS
 # =========================
 @app.get("/preguntas")
 def get_preguntas(categoria: str = Query(...)):
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
 
-        query = """
-        SELECT p.*
-        FROM preguntas p
-        JOIN categorias c ON p.categoria_id = c.id
-        WHERE c.nombre = %s
-        ORDER BY RAND()
-        LIMIT 10
-        """
+    query = """
+    SELECT p.*
+    FROM preguntas p
+    JOIN categorias c ON p.categoria_id = c.id
+    WHERE c.nombre = %s
+    ORDER BY RAND()
+    LIMIT 10
+    """
 
-        cursor.execute(query, (categoria,))
-        data = cursor.fetchall()
+    cursor.execute(query, (categoria,))
+    data = cursor.fetchall()
 
-        cursor.close()
-        conn.close()
+    cursor.close()
+    conn.close()
 
-        return data
-
-    except Exception as e:
-        return {"error": str(e)}
+    return data
 
 # =========================
-# VALIDAR RESPUESTA
+# RESPONDER
 # =========================
 @app.post("/responder")
 def responder(respuesta: Respuesta):
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+    conn = get_connection()
+    cursor = conn.cursor(dictionary=True)
 
-        cursor.execute(
-            "SELECT correcta FROM preguntas WHERE id = %s",
-            (respuesta.id_pregunta,)
-        )
+    cursor.execute(
+        "SELECT correcta FROM preguntas WHERE id = %s",
+        (respuesta.id_pregunta,)
+    )
 
-        result = cursor.fetchone()
+    result = cursor.fetchone()
 
-        cursor.close()
-        conn.close()
+    cursor.close()
+    conn.close()
 
-        if result is None:
-            return {"error": "Pregunta no encontrada"}
+    if result is None:
+        return {"error": "Pregunta no encontrada"}
 
-        if result["correcta"] == respuesta.respuesta:
-            return {
-                "correcto": True,
-                "puntos": 10
-            }
-        else:
-            return {
-                "correcto": False,
-                "puntos": 0
-            }
+    correcto = result["correcta"] == respuesta.respuesta
 
-    except Exception as e:
-        return {"error": str(e)}
+    return {
+        "correcto": correcto,
+        "puntos": 10 if correcto else 0
+    }
 
 # =========================
 # GUARDAR PARTIDA
 # =========================
-class Partida(BaseModel):
-    categoria: str
-    correctas: int
-    total: int
-
 @app.post("/guardar-partida")
 def guardar_partida(partida: Partida):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    query = """
+    INSERT INTO partidas (categoria, correctas, total)
+    VALUES (%s, %s, %s)
+    """
+
+    cursor.execute(query, (
+        partida.categoria,
+        partida.correctas,
+        partida.total
+    ))
+
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return {"message": "Partida guardada correctamente"}
+
+# =========================
+# 🔥 WEBSOCKET MULTIJUGADOR PRO
+# =========================
+@app.websocket("/ws/{room_id}")
+async def websocket_endpoint(websocket: WebSocket, room_id: str):
+    await websocket.accept()
+
+    # Crear sala si no existe
+    if room_id not in rooms:
+        rooms[room_id] = []
+        scores[room_id] = {}
+
+    rooms[room_id].append(websocket)
+
+    player_id = str(uuid.uuid4())
+
+    # 🔥 Jugador numerado
+    player_number = len(scores[room_id]) + 1
+
+    scores[room_id][player_id] = {
+        "nombre": f"Jugador {player_number}",
+        "puntos": 0,
+        "correctas": 0,
+        "incorrectas": 0
+    }
+
+    # Enviar info al jugador
+    await websocket.send_json({
+        "type": "connected",
+        "player_id": player_id,
+        "nombre": scores[room_id][player_id]["nombre"]
+    })
+
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
+        while True:
+            data = await websocket.receive_json()
 
-        query = """
-        INSERT INTO partidas (categoria, correctas, total)
-        VALUES (%s, %s, %s)
-        """
+            # =========================
+            # RESPUESTA
+            # =========================
+            if data.get("type") == "respuesta":
+                puntos = data.get("puntos", 0)
 
-        cursor.execute(query, (
-            partida.categoria,
-            partida.correctas,
-            partida.total
-        ))
+                scores[room_id][player_id]["puntos"] += puntos
 
-        conn.commit()
+                if puntos > 0:
+                    scores[room_id][player_id]["correctas"] += 1
+                else:
+                    scores[room_id][player_id]["incorrectas"] += 1
 
-        cursor.close()
-        conn.close()
+                # Ranking ordenado
+                ranking = sorted(
+                    scores[room_id].values(),
+                    key=lambda x: x["puntos"],
+                    reverse=True
+                )
 
-        return {"message": "Partida guardada correctamente"}
+                for conn in rooms[room_id]:
+                    await conn.send_json({
+                        "type": "score",
+                        "ranking": ranking
+                    })
 
-    except Exception as e:
-        return {"error": str(e)}
+            # =========================
+            # INICIO
+            # =========================
+            elif data.get("type") == "start":
+                for conn in rooms[room_id]:
+                    await conn.send_json({
+                        "type": "start"
+                    })
+
+            # =========================
+            # FINAL
+            # =========================
+            elif data.get("type") == "end":
+                ranking = sorted(
+                    scores[room_id].values(),
+                    key=lambda x: x["puntos"],
+                    reverse=True
+                )
+
+                for conn in rooms[room_id]:
+                    await conn.send_json({
+                        "type": "final",
+                        "ranking": ranking
+                    })
+
+    except WebSocketDisconnect:
+        rooms[room_id].remove(websocket)
+
+        if player_id in scores[room_id]:
+            del scores[room_id][player_id]
+
+        if len(rooms[room_id]) == 0:
+            del rooms[room_id]
+            del scores[room_id]
