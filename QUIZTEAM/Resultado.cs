@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -9,19 +10,17 @@ namespace QUIZTEAM
     {
         private string _categoria;
         private int _correctas, _total;
-        private Rectangle _zonaJugarOtro, _zonaCategorias;
+        private List<PlayerScore> _ranking;
+        private Rectangle _zonaMenu, _zonaSalir;
 
-        public Resultado(string categoria, int correctas, int total)
+        public Resultado(string categoria, int correctas, int total, List<PlayerScore> ranking)
         {
-            _categoria = categoria;
-            _correctas = correctas;
-            _total = total;
+            _categoria = categoria; _correctas = correctas; _total = total;
+            _ranking = ranking ?? new List<PlayerScore>();
             this.DoubleBuffered = true;
-            this.ClientSize = new Size(780, 480);
-            this.Text = "QUIZTEAM — Resultado";
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.WindowState = FormWindowState.Maximized;
             this.BackColor = Color.FromArgb(26, 26, 46);
-            _zonaJugarOtro = new Rectangle(160, 370, 190, 42);
-            _zonaCategorias = new Rectangle(430, 370, 190, 42);
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -29,122 +28,47 @@ namespace QUIZTEAM
             base.OnPaint(e);
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            g.Clear(Color.FromArgb(26, 26, 46));
 
-            // Header
-            using (Font f = new Font("Consolas", 10))
-            using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
-                g.DrawString("▶ QUIZTEAM  /  Resultado final", f, br, 30, 18);
+            int midX = this.ClientSize.Width / 2;
+            int groundY = this.ClientSize.Height - 150;
 
-            // Círculo de score
-            double pct = (double)_correctas / _total;
-            Rectangle circleRect = new Rectangle(290, 50, 200, 200);
-            // Fondo círculo
-            using (Pen p = new Pen(Color.FromArgb(40, 40, 60), 12))
-                g.DrawEllipse(p, circleRect);
-            // Arco de progreso
-            Color colorArco = pct >= 0.7 ? Color.FromArgb(245, 166, 35)
-                            : pct >= 0.5 ? Color.FromArgb(39, 174, 96)
-                                         : Color.FromArgb(233, 69, 96);
-            using (Pen p = new Pen(colorArco, 12))
-            {
-                p.StartCap = LineCap.Round;
-                p.EndCap = LineCap.Round;
-                g.DrawArc(p, circleRect, -90, (float)(360 * pct));
-            }
+            // Título
+            using (Font f = new Font("Georgia", 26, FontStyle.Bold))
+            using (SolidBrush br = new SolidBrush(Color.White))
+                g.DrawString($"RESULTADOS: {_correctas}/{_total}", f, br, new RectangleF(0, 50, this.Width, 60), new StringFormat { Alignment = StringAlignment.Center });
 
-            // Texto score
-            using (Font fBig = new Font("Georgia", 36, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(Color.FromArgb(234, 234, 234)))
-            {
-                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString($"{_correctas}/{_total}", fBig, br,
-                    new RectangleF(290, 50, 200, 200), sf);
-            }
-            using (Font fSub = new Font("Consolas", 10))
-            using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
-            {
-                var sf = new StringFormat { Alignment = StringAlignment.Center };
-                g.DrawString("preguntas correctas", fSub, br, new RectangleF(0, 258, 780, 20), sf);
-            }
-
-            // Mensaje motivador
-            string msg = pct >= 0.9 ? "¡Excelente! 🏆"
-                       : pct >= 0.7 ? "¡Buen trabajo!"
-                       : pct >= 0.5 ? "Puedes mejorar"
-                                     : "¡Sigue practicando!";
-            using (Font fMsg = new Font("Georgia", 20, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(colorArco))
-            {
-                var sf = new StringFormat { Alignment = StringAlignment.Center };
-                g.DrawString(msg, fMsg, br, new RectangleF(0, 292, 780, 32), sf);
-            }
-
-            // Detalle
-            using (Font fD = new Font("Georgia", 12))
-            using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
-            {
-                var sf = new StringFormat { Alignment = StringAlignment.Center };
-                g.DrawString($"Categoría: {_categoria}   •   {_incorrectas} incorrectas",
-                    fD, br, new RectangleF(0, 330, 780, 24), sf);
-            }
+            // Podio
+            if (_ranking.Count >= 2) DibujarPilar(g, _ranking[1], midX - 220, groundY, 160, "2°", Color.Silver);
+            if (_ranking.Count >= 1) DibujarPilar(g, _ranking[0], midX - 90, groundY, 240, "1°", Color.Gold);
+            if (_ranking.Count >= 3) DibujarPilar(g, _ranking[2], midX + 130, groundY, 100, "3°", Color.Chocolate);
 
             // Botones
-            DrawRoundRect(g, _zonaJugarOtro, 21, Color.FromArgb(15, 52, 96),
-                Color.FromArgb(233, 69, 96));
+            _zonaMenu = new Rectangle(midX - 110, this.Height - 80, 220, 45);
+            Juego.DrawRoundRect(g, _zonaMenu, 10, Color.FromArgb(233, 69, 96), Color.Transparent);
             using (Font f = new Font("Georgia", 12, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(Color.FromArgb(234, 234, 234)))
-            {
-                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("Jugar de nuevo", f, br, _zonaJugarOtro, sf);
-            }
-
-            DrawRoundRect(g, _zonaCategorias, 21, Color.FromArgb(233, 69, 96),
-                Color.Transparent);
-            using (Font f = new Font("Georgia", 12, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(Color.White))
-            {
-                var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("Ver categorías", f, br, _zonaCategorias, sf);
-            }
+                g.DrawString("VOLVER AL MENÚ", f, Brushes.White, _zonaMenu, new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
         }
 
-        private int _incorrectas => _total - _correctas;
-
-        private void DrawRoundRect(Graphics g, Rectangle r, int radio, Color fill, Color borde)
+        private void DibujarPilar(Graphics g, PlayerScore p, int x, int groundY, int alto, string rank, Color color)
         {
-            var path = new GraphicsPath();
-            path.AddArc(r.X, r.Y, radio * 2, radio * 2, 180, 90);
-            path.AddArc(r.Right - radio * 2, r.Y, radio * 2, radio * 2, 270, 90);
-            path.AddArc(r.Right - radio * 2, r.Bottom - radio * 2, radio * 2, radio * 2, 0, 90);
-            path.AddArc(r.X, r.Bottom - radio * 2, radio * 2, radio * 2, 90, 90);
-            path.CloseAllFigures();
-            if (fill != Color.Transparent)
-                using (SolidBrush br = new SolidBrush(fill)) g.FillPath(br, path);
-            if (borde != Color.Transparent)
-                using (Pen p = new Pen(borde, 1.5f)) g.DrawPath(p, path);
+            Rectangle rect = new Rectangle(x, groundY - alto, 180, alto);
+            using (LinearGradientBrush lgb = new LinearGradientBrush(rect, color, Color.FromArgb(20, 20, 40), 90f))
+                g.FillRectangle(lgb, rect);
+            g.DrawRectangle(new Pen(color, 2), rect);
+
+            using (Font f = new Font("Segoe UI", 12, FontStyle.Bold))
+            using (SolidBrush br = new SolidBrush(Color.White))
+            {
+                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                g.DrawString(p.nombre, f, br, new RectangleF(x, rect.Y - 50, 180, 25), sf);
+                g.DrawString($"{p.puntos} PTS", f, br, new RectangleF(x, rect.Y - 25, 180, 20), sf);
+                g.DrawString(rank, new Font("Impact", 25), br, new RectangleF(x, rect.Y + 10, 180, 50), sf);
+            }
         }
 
         protected override void OnMouseClick(MouseEventArgs e)
         {
-            base.OnMouseClick(e);
-            if (_zonaJugarOtro.Contains(e.Location))
-            {
-                var juego = new Juego(_categoria);
-                juego.Show();
-                this.Close();
-            }
-            else if (_zonaCategorias.Contains(e.Location))
-                this.Close();
-        }
-
-        protected override void OnMouseMove(MouseEventArgs e)
-        {
-            base.OnMouseMove(e);
-            this.Cursor = (_zonaJugarOtro.Contains(e.Location) ||
-                           _zonaCategorias.Contains(e.Location))
-                ? Cursors.Hand : Cursors.Default;
+            if (_zonaMenu.Contains(e.Location)) this.Close();
         }
     }
 }
