@@ -4,7 +4,10 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.IO;
 using System.Net.Http;
+using System.Net.WebSockets;
+using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -22,6 +25,12 @@ namespace QUIZTEAM
         private List<Image> _imagenesOpciones = new List<Image>();
         private static readonly HttpClient client = new HttpClient();
 
+        // WebSocket
+        private ClientWebSocket _ws = new ClientWebSocket();
+        private string _playerId = "";
+        private string _playerNombre = "";
+        private List<PlayerScore> _rankingActual = new List<PlayerScore>();
+
         public Juego(string categoria)
         {
             _categoria = categoria;
@@ -29,34 +38,122 @@ namespace QUIZTEAM
             this.FormBorderStyle = FormBorderStyle.None;
             this.WindowState = FormWindowState.Maximized;
             this.BackColor = Color.FromArgb(26, 26, 46);
-
             this.Load += async (s, e) => await InicializarJuego();
         }
 
         private async Task InicializarJuego()
         {
+            await ConectarWebSocket();
             await CargarPreguntasAPI();
             CalcularZonas();
             CargarImagenesActual();
             this.Invalidate();
         }
 
+        // =========================
+        // WEBSOCKET
+        // =========================
+        private async Task ConectarWebSocket()
+        {
+            try
+            {
+                string url = $"{Config.WsUrl}/ws/{Config.RoomId}";
+                await _ws.ConnectAsync(new Uri(url), CancellationToken.None);
+
+                // Recibir mensaje "connected"
+                var buffer = new byte[4096];
+                var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                var msg = JsonSerializer.Deserialize<JsonElement>(json);
+
+                _playerId = msg.GetProperty("player_id").GetString();
+                _playerNombre = msg.GetProperty("nombre").GetString();
+
+                // Iniciar escucha continua
+                _ = Task.Run(EscucharWebSocket);
+
+                // Enviar categoría seleccionada
+                await EnviarWs(new { type = "set_category", categoria = _categoria });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error WebSocket: " + ex.Message);
+            }
+        }
+
+        private async Task EscucharWebSocket()
+        {
+            var buffer = new byte[8192];
+            while (_ws.State == WebSocketState.Open)
+            {
+                try
+                {
+                    var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    var msg = JsonSerializer.Deserialize<JsonElement>(json);
+                    string type = msg.GetProperty("type").GetString();
+
+                    if (type == "score" || type == "final")
+                    {
+                        var ranking = new List<PlayerScore>();
+                        foreach (var item in msg.GetProperty("ranking").EnumerateArray())
+                        {
+                            ranking.Add(new PlayerScore
+                            {
+                                nombre = item.GetProperty("nombre").GetString(),
+                                puntos = item.GetProperty("puntos").GetInt32(),
+                                correctas = item.GetProperty("correctas").GetInt32()
+                            });
+                        }
+                        _rankingActual = ranking;
+
+                        if (type == "final")
+                        {
+                            this.Invoke((Action)(() =>
+                            {
+                                var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, _rankingActual);
+                                formRes.Show();
+                                this.Hide();
+                            }));
+                        }
+                    }
+                }
+                catch { break; }
+            }
+        }
+
+        private async Task EnviarWs(object obj)
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(obj);
+                var bytes = Encoding.UTF8.GetBytes(json);
+                await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+            catch { }
+        }
+
+        // =========================
+        // API
+        // =========================
         private async Task CargarPreguntasAPI()
         {
             try
             {
-                // ← CORRECCIÓN: query parameter en lugar de ruta
                 string url = $"{Config.ApiUrl}/preguntas?categoria={Uri.EscapeDataString(_categoria)}";
                 string response = await client.GetStringAsync(url);
                 _preguntas = JsonSerializer.Deserialize<List<Pregunta>>(response);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"URL: {Config.ApiUrl}/preguntas?categoria={_categoria}\nError: {ex.Message}");
+                MessageBox.Show($"Error cargando preguntas: {ex.Message}");
                 this.Close();
             }
         }
 
+        // =========================
+        // UI
+        // =========================
         private void CalcularZonas()
         {
             int W = this.ClientSize.Width, H = this.ClientSize.Height;
@@ -80,10 +177,11 @@ namespace QUIZTEAM
             if (_indiceActual >= _preguntas.Count) return;
 
             var p = _preguntas[_indiceActual];
-            if (p.tipo == "imagen" && p.imagenesOpciones != null)
+            if (p.tipo == "imagen")
             {
                 foreach (var ruta in p.imagenesOpciones)
                 {
+                    if (string.IsNullOrEmpty(ruta)) { _imagenesOpciones.Add(null); continue; }
                     string path = Path.Combine(Application.StartupPath, "Imagenes", ruta);
                     _imagenesOpciones.Add(File.Exists(path) ? Image.FromFile(path) : null);
                 }
@@ -101,40 +199,73 @@ namespace QUIZTEAM
 
             var p = _preguntas[_indiceActual];
 
-            // 1. Header
+            // Header
             using (Font f = new Font("Consolas", 10))
             using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
-                g.DrawString($"▶ QUIZTEAM / {_categoria} - {(_indiceActual + 1)} de {_preguntas.Count}", f, br, 30, 20);
+                g.DrawString($"▶ QUIZTEAM / {_categoria} — {_playerNombre} — {_indiceActual + 1} de {_preguntas.Count}",
+                    f, br, 30, 20);
 
-            // 2. Progreso
+            // Barra progreso
             int barW = this.ClientSize.Width - 60;
             DrawRoundRect(g, new Rectangle(30, 45, barW, 8), 4, Color.FromArgb(51, 51, 68), Color.Transparent);
             int progreso = (int)(barW * (_indiceActual + 1.0) / _preguntas.Count);
             DrawRoundRect(g, new Rectangle(30, 45, progreso, 8), 4, Color.FromArgb(233, 69, 96), Color.Transparent);
 
-            // 3. Pregunta
-            DrawRoundRect(g, new Rectangle(30, 65, barW, 130), 10, Color.FromArgb(22, 33, 62), Color.FromArgb(233, 69, 96));
+            // Ranking lateral en vivo
+            DibujarRankingLateral(g);
+
+            // Pregunta
+            DrawRoundRect(g, new Rectangle(30, 65, barW, 130), 10,
+                Color.FromArgb(22, 33, 62), Color.FromArgb(233, 69, 96));
             using (Font f = new Font("Georgia", 16, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.White))
-                g.DrawString(p.texto, f, br, new RectangleF(50, 65, barW - 40, 130), new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                g.DrawString(p.texto, f, br,
+                    new RectangleF(50, 65, barW - 40, 130),
+                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
 
-            // 4. Opciones
+            // Opciones
             if (p.tipo == "imagen") DibujarOpcionesImagen(g, p);
             else DibujarOpcionesTexto(g, p);
 
-            // 5. Botones Control
+            // Botón siguiente
             if (_respondida)
             {
                 DrawRoundRect(g, _zonaSiguiente, 20, Color.FromArgb(233, 69, 96), Color.Transparent);
                 using (Font f = new Font("Georgia", 12, FontStyle.Bold))
                 using (SolidBrush br = new SolidBrush(Color.White))
-                    g.DrawString(_indiceActual == _preguntas.Count - 1 ? "VER PODIO ▶" : "SIGUIENTE →", f, br, _zonaSiguiente, new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                    g.DrawString(_indiceActual == _preguntas.Count - 1 ? "VER PODIO ▶" : "SIGUIENTE →",
+                        f, br, _zonaSiguiente,
+                        new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
             }
 
+            // Botón salir
             DrawRoundRect(g, _zonaSalir, 17, Color.Transparent, Color.FromArgb(85, 85, 85));
             using (Font f = new Font("Georgia", 10))
             using (SolidBrush br = new SolidBrush(Color.Gray))
-                g.DrawString("ESC - SALIR", f, br, _zonaSalir, new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                g.DrawString("ESC - SALIR", f, br, _zonaSalir,
+                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+        }
+
+        private void DibujarRankingLateral(Graphics g)
+        {
+            if (_rankingActual.Count == 0) return;
+
+            int x = this.ClientSize.Width - 200, y = 65;
+            using (Font ft = new Font("Consolas", 9, FontStyle.Bold))
+            using (SolidBrush brT = new SolidBrush(Color.FromArgb(233, 69, 96)))
+                g.DrawString("🏆 EN VIVO", ft, brT, x, y);
+
+            y += 20;
+            int max = Math.Min(_rankingActual.Count, 5);
+            for (int i = 0; i < max; i++)
+            {
+                var ps = _rankingActual[i];
+                bool esYo = ps.nombre == _playerNombre;
+                Color color = esYo ? Color.FromArgb(233, 69, 96) : Color.Silver;
+                using (Font f = new Font("Consolas", 9, esYo ? FontStyle.Bold : FontStyle.Regular))
+                using (SolidBrush br = new SolidBrush(color))
+                    g.DrawString($"{i + 1}. {ps.nombre} — {ps.puntos}pts", f, br, x, y + i * 18);
+            }
         }
 
         private void DibujarOpcionesTexto(Graphics g, Pregunta p)
@@ -154,7 +285,8 @@ namespace QUIZTEAM
                 DrawRoundRect(g, r, 10, fill, borde);
                 using (Font f = new Font("Georgia", 12))
                 using (SolidBrush br = new SolidBrush(Color.White))
-                    g.DrawString(p.opciones[i], f, br, r, new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                    g.DrawString(p.opciones[i], f, br, r,
+                        new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
             }
         }
 
@@ -168,10 +300,7 @@ namespace QUIZTEAM
 
                 DrawRoundRect(g, r, 10, Color.FromArgb(15, 33, 62), borde);
                 if (i < _imagenesOpciones.Count && _imagenesOpciones[i] != null)
-                {
-                    Rectangle imgRect = new Rectangle(r.X + 8, r.Y + 8, r.Width - 16, r.Height - 16);
-                    g.DrawImage(_imagenesOpciones[i], imgRect);
-                }
+                    g.DrawImage(_imagenesOpciones[i], new Rectangle(r.X + 8, r.Y + 8, r.Width - 16, r.Height - 16));
             }
         }
 
@@ -192,32 +321,57 @@ namespace QUIZTEAM
 
         protected override void OnMouseClick(MouseEventArgs e)
         {
-            if (_zonaSalir.Contains(e.Location)) this.Close();
+            if (_zonaSalir.Contains(e.Location)) { _ = CerrarWs(); this.Close(); return; }
+
             if (_respondida && _zonaSiguiente.Contains(e.Location))
             {
-                if (_indiceActual == _preguntas.Count - 1) FinalizarJuego();
-                else { _indiceActual++; _seleccion = -1; _respondida = false; CargarImagenesActual(); this.Invalidate(); }
+                if (_indiceActual == _preguntas.Count - 1)
+                    _ = FinalizarJuego();
+                else
+                {
+                    _indiceActual++;
+                    _seleccion = -1;
+                    _respondida = false;
+                    CargarImagenesActual();
+                    this.Invalidate();
+                }
+                return;
             }
-            else if (!_respondida)
+
+            if (!_respondida)
             {
                 for (int i = 0; i < 4; i++)
                 {
                     if (_zonasOpciones[i].Contains(e.Location))
                     {
-                        _seleccion = i; _respondida = true;
-                        if (i == _preguntas[_indiceActual].correcta - 1) _correctas++;
-                        else _incorrectas++;
-                        this.Invalidate(); break;
+                        _seleccion = i;
+                        _respondida = true;
+                        bool correcto = i == _preguntas[_indiceActual].correcta - 1;
+                        if (correcto) _correctas++; else _incorrectas++;
+
+                        // Enviar respuesta al servidor vía WebSocket
+                        _ = EnviarWs(new
+                        {
+                            type = "respuesta",
+                            puntos = correcto ? 10 : 0
+                        });
+
+                        this.Invalidate();
+                        break;
                     }
                 }
             }
         }
 
-        private async void FinalizarJuego()
+        private async Task FinalizarJuego()
         {
+            // Notificar fin al servidor
+            await EnviarWs(new { type = "end" });
+
+            // Guardar partida en la API REST
             try
             {
-                var resAPI = await client.PostAsync($"{Config.ApiUrl}/guardar-partida",
+                await client.PostAsync($"{Config.ApiUrl}/guardar-partida",
                     new StringContent(
                         JsonSerializer.Serialize(new
                         {
@@ -225,25 +379,39 @@ namespace QUIZTEAM
                             correctas = _correctas,
                             total = _preguntas.Count
                         }),
-                        System.Text.Encoding.UTF8,
-                        "application/json"
-                    ));
-
-                // Ranking local mientras no haya endpoint de ranking en la API
-                var rankingLocal = new List<PlayerScore>
-                {
-                    new PlayerScore { nombre = "Tú", puntos = _correctas * 10, correctas = _correctas }
-                };
-
-                var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, rankingLocal);
-                formRes.Show();
-                this.Hide();
+                        Encoding.UTF8, "application/json"));
             }
-            catch (Exception ex)
+            catch { }
+
+            // El podio llega por WebSocket (type: "final")
+            // Si no llega en 3 segundos, mostramos con ranking local
+            await Task.Delay(3000);
+
+            if (!this.IsDisposed)
             {
-                MessageBox.Show("No se pudo guardar la partida: " + ex.Message);
-                this.Close();
+                this.Invoke((Action)(() =>
+                {
+                    var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, _rankingActual);
+                    formRes.Show();
+                    this.Hide();
+                }));
             }
+        }
+
+        private async Task CerrarWs()
+        {
+            try
+            {
+                if (_ws.State == WebSocketState.Open)
+                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+            }
+            catch { }
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            _ = CerrarWs();
+            base.OnFormClosed(e);
         }
     }
 }
