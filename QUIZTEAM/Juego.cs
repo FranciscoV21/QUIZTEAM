@@ -45,13 +45,14 @@ namespace QUIZTEAM
         {
             try
             {
-                string url = $"{Config.ApiUrl}/preguntas/{_categoria}";
+                // ← CORRECCIÓN: query parameter en lugar de ruta
+                string url = $"{Config.ApiUrl}/preguntas?categoria={Uri.EscapeDataString(_categoria)}";
                 string response = await client.GetStringAsync(url);
                 _preguntas = JsonSerializer.Deserialize<List<Pregunta>>(response);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error de conexión: " + ex.Message);
+                MessageBox.Show($"URL: {Config.ApiUrl}/preguntas?categoria={_categoria}\nError: {ex.Message}");
                 this.Close();
             }
         }
@@ -216,24 +217,31 @@ namespace QUIZTEAM
         {
             try
             {
-                var resAPI = await client.PostAsync($"{Config.ApiUrl}/finalizar",
+                var resAPI = await client.PostAsync($"{Config.ApiUrl}/guardar-partida",
                     new StringContent(
-                        JsonSerializer.Serialize(new { nombre = "Usuario", correctas = _correctas }),
+                        JsonSerializer.Serialize(new
+                        {
+                            categoria = _categoria,
+                            correctas = _correctas,
+                            total = _preguntas.Count
+                        }),
                         System.Text.Encoding.UTF8,
                         "application/json"
                     ));
 
-                var ranking = JsonSerializer.Deserialize<List<PlayerScore>>(
-                    await resAPI.Content.ReadAsStringAsync()
-                );
+                // Ranking local mientras no haya endpoint de ranking en la API
+                var rankingLocal = new List<PlayerScore>
+                {
+                    new PlayerScore { nombre = "Tú", puntos = _correctas * 10, correctas = _correctas }
+                };
 
-                var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, ranking);
+                var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, rankingLocal);
                 formRes.Show();
                 this.Hide();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("No se pudo obtener el podio: " + ex.Message);
+                MessageBox.Show("No se pudo guardar la partida: " + ex.Message);
                 this.Close();
             }
         }

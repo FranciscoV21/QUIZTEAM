@@ -111,7 +111,6 @@
       <DependentUpon>Categorias.cs</DependentUpon>
     </Compile>
     <Compile Include="Config.cs" />
-    <Compile Include="DB.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
