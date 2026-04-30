@@ -45,8 +45,7 @@ namespace QUIZTEAM
         {
             try
             {
-                // REEMPLAZAR con tu URL real
-                string url = $"https://tu-api.railway.app/preguntas/{_categoria}";
+                string url = $"{Config.ApiUrl}/preguntas/{_categoria}";
                 string response = await client.GetStringAsync(url);
                 _preguntas = JsonSerializer.Deserialize<List<Pregunta>>(response);
             }
@@ -217,16 +216,24 @@ namespace QUIZTEAM
         {
             try
             {
-                var resAPI = await client.PostAsync("https://tu-api.railway.app/finalizar",
-                    new StringContent(JsonSerializer.Serialize(new { nombre = "Usuario", correctas = _correctas }), System.Text.Encoding.UTF8, "application/json"));
-                var ranking = JsonSerializer.Deserialize<List<PlayerScore>>(await resAPI.Content.ReadAsStringAsync());
+                var resAPI = await client.PostAsync($"{Config.ApiUrl}/finalizar",
+                    new StringContent(
+                        JsonSerializer.Serialize(new { nombre = "Usuario", correctas = _correctas }),
+                        System.Text.Encoding.UTF8,
+                        "application/json"
+                    ));
+
+                var ranking = JsonSerializer.Deserialize<List<PlayerScore>>(
+                    await resAPI.Content.ReadAsStringAsync()
+                );
 
                 var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, ranking);
-                formRes.Show(); this.Hide();
+                formRes.Show();
+                this.Hide();
             }
-            catch
+            catch (Exception ex)
             {
-                MessageBox.Show("No se pudo obtener el podio.");
+                MessageBox.Show("No se pudo obtener el podio: " + ex.Message);
                 this.Close();
             }
         }

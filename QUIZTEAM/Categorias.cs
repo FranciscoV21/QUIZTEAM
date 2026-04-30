@@ -26,8 +26,7 @@ namespace QUIZTEAM
 
         private HttpClient client = new HttpClient();
 
-        private string apiUrl = "http://10.214.60.84:8000"; // CAMBIA SI ES NECESARIO
-
+        private string apiUrl = Config.ApiUrl;
         public Categorias()
 
         {
