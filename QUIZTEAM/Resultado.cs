@@ -18,7 +18,7 @@ namespace QUIZTEAM
             _categoria = categoria;
             _correctas = correctas;
             _total = total;
-            // Limitar entre 2 y 5 jugadores en el podio
+            // Limitar entre 2 y 5 jugadores en el podio JAIR
             _ranking = ranking ?? new List<PlayerScore>();
             if (_ranking.Count > 5) _ranking = _ranking.GetRange(0, 5);
 
