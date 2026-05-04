@@ -77,7 +77,7 @@ namespace QUIZTEAM
 
         private async Task EscucharWs()
         {
-            var buffer = new byte[8192]; // Buffer más grande para evitar cortes
+            var buffer = new byte[8192];
             while (_ws != null && _ws.State == WebSocketState.Open)
             {
                 try
@@ -94,9 +94,21 @@ namespace QUIZTEAM
 
                         if (type == "sala_update")
                         {
-                            // Actualizamos el conteo real que manda el servidor
+                            // 1. Actualizamos el conteo real
                             _jugadoresEnSala = msg.GetProperty("jugadores").GetInt32();
-                            ActualizarUI();
+
+                            // 2. REVISAMOS SI LA API NOS DIO EL LIDERAZGO
+                            // Esto pasa cuando el líder anterior se desconecta
+                            if (msg.TryGetProperty("nuevo_lider", out JsonElement liderProp))
+                            {
+                                if (liderProp.GetBoolean())
+                                {
+                                    _esLider = true; // Ahora este cliente tiene el control
+                                }
+                            }
+
+                            // 3. Refrescamos la interfaz en el hilo principal
+                            this.Invoke((Action)(() => ActualizarUI()));
                         }
                         else if (type == "start_game")
                         {
@@ -177,6 +189,21 @@ namespace QUIZTEAM
             using (Font f = new Font("Segoe UI", 9))
                 DibujarTextoEnRect(g, "ESC - SALIR", f, Brushes.Gray, _zonaSalir);
         }
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            // 1. Detener el timer de dibujo
+            _timer?.Stop();
+
+            // 2. Intentar avisar a la API que nos desconectamos
+            if (_ws != null && _ws.State == WebSocketState.Open)
+            {
+                // Enviamos un mensaje de tipo 'leave' si tu API lo soporta
+                // o simplemente cerramos el socket formalmente.
+                var closeTask = _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Cierre de cliente", CancellationToken.None);
+            }
+
+            base.OnFormClosing(e);
+        }
 
         private void DibujarIconosJugadores(Graphics g, int W, int H)
         {
@@ -239,4 +266,5 @@ namespace QUIZTEAM
 
         private void ActualizarUI() { if (!this.IsDisposed) this.Invoke((Action)(() => this.Invalidate())); }
     }
+
 }
