@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace QUIZTEAM
@@ -11,37 +12,20 @@ namespace QUIZTEAM
         private string _categoria;
         private int _correctas, _total;
         private List<PlayerScore> _ranking;
-        private Rectangle _zonaMenu;
 
         public Resultado(string categoria, int correctas, int total, List<PlayerScore> ranking)
         {
+            InitializeComponent();
             _categoria = categoria;
             _correctas = correctas;
             _total = total;
-            _ranking = ranking ?? new List<PlayerScore>();
-            if (_ranking.Count > 5) _ranking = _ranking.GetRange(0, 5);
+            // Ordenamos por puntos de mayor a menor por seguridad
+            _ranking = ranking?.OrderByDescending(x => x.puntos).ToList() ?? new List<PlayerScore>();
 
             this.DoubleBuffered = true;
             this.FormBorderStyle = FormBorderStyle.None;
             this.WindowState = FormWindowState.Maximized;
             this.BackColor = Color.FromArgb(26, 26, 46);
-            this.KeyPreview = true;
-
-            this.Load += (s, e) => RecalcularZonas();
-        }
-
-        private void RecalcularZonas()
-        {
-            int W = this.ClientSize.Width;
-            int H = this.ClientSize.Height;
-            _zonaMenu = new Rectangle(W / 2 - 120, H - 70, 240, 48);
-        }
-
-        protected override void OnResize(EventArgs e)
-        {
-            base.OnResize(e);
-            RecalcularZonas();
-            this.Invalidate();
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -49,100 +33,112 @@ namespace QUIZTEAM
             base.OnPaint(e);
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
             int W = this.ClientSize.Width;
             int H = this.ClientSize.Height;
-            int midX = W / 2;
-            int groundY = H - 160;
 
-            g.Clear(Color.FromArgb(26, 26, 46));
-
-            // Título
-            using (Font f = new Font("Georgia", 24, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(Color.White))
-                g.DrawString($"PODIO — {_categoria}  |  Tu resultado: {_correctas}/{_total}",
-                    f, br, new RectangleF(0, 30, W, 50),
-                    new StringFormat { Alignment = StringAlignment.Center });
-
-            // Podio
-            DibujarPodio(g, midX, groundY);
-
-            // Botón volver
-            Juego.DrawRoundRect(g, _zonaMenu, 24, Color.FromArgb(233, 69, 96), Color.Transparent);
-            using (Font f = new Font("Georgia", 13, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(Color.White))
-                g.DrawString("← VOLVER AL MENÚ", f, br, _zonaMenu,
-                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-        }
-
-        private void DibujarPodio(Graphics g, int midX, int groundY)
-        {
-            var configs = new (int offsetX, int alto, string rank, Color color)[]
+            // 1. TÍTULO
+            using (Font fTitulo = new Font("Georgia", 26, FontStyle.Bold))
             {
-                (0,    240, "1°", Color.Gold),
-                (-220, 180, "2°", Color.Silver),
-                (220,  130, "3°", Color.Chocolate),
-                (-380, 100, "4°", Color.SteelBlue),
-                (380,   80, "5°", Color.MediumPurple),
-            };
-
-            int count = Math.Min(_ranking.Count, 5);
-            for (int i = 0; i < count; i++)
-            {
-                var (offsetX, alto, rank, color) = configs[i];
-                DibujarPilar(g, _ranking[i], midX + offsetX - 90, groundY, alto, rank, color);
+                string txt = $"FINALIZADO: {_categoria}";
+                SizeF size = g.MeasureString(txt, fTitulo);
+                g.DrawString(txt, fTitulo, Brushes.Crimson, (W - size.Width) / 2, 40);
             }
+
+            // 2. DIBUJAR EL PODIO (TOP 3)
+            DibujarPodio(g, W, H);
+
+            // 3. DIBUJAR EL RESTO (DEL 4 EN ADELANTE)
+            if (_ranking.Count > 3)
+            {
+                int startY = H / 2 + 100;
+                for (int i = 3; i < Math.Min(_ranking.Count, 7); i++)
+                {
+                    Rectangle rect = new Rectangle((W - 500) / 2, startY + ((i - 3) * 55), 500, 45);
+                    Juego.DrawRoundRect(g, rect, 10, Color.FromArgb(34, 40, 70), Color.FromArgb(85, 85, 85));
+
+                    using (Font f = new Font("Segoe UI", 11, FontStyle.Bold))
+                    {
+                        g.DrawString($"{i + 1}. {_ranking[i].nombre}", f, Brushes.Silver, rect.X + 20, rect.Y + 12);
+                        g.DrawString($"{_ranking[i].puntos} pts", f, Brushes.Gray, rect.Right - 100, rect.Y + 12);
+                    }
+                }
+            }
+
+            // 4. BOTÓN SALIR
+            Rectangle btnSalir = new Rectangle((W - 200) / 2, H - 80, 200, 45);
+            Juego.DrawRoundRect(g, btnSalir, 20, Color.FromArgb(233, 69, 96), Color.Transparent);
+            using (Font fBtn = new Font("Segoe UI", 11, FontStyle.Bold))
+                g.DrawString("CONTINUAR", fBtn, Brushes.White, btnSalir, new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
         }
 
-        private void DibujarPilar(Graphics g, PlayerScore p, int x, int groundY, int alto, string rank, Color color)
+        private void DibujarPodio(Graphics g, int W, int H)
         {
-            Rectangle rect = new Rectangle(x, groundY - alto, 180, alto);
+            int basePodio = H / 2 + 50;
+            int anchoBloque = 160;
+            int centroX = W / 2;
 
-            using (LinearGradientBrush lgb = new LinearGradientBrush(
-                rect, color, Color.FromArgb(20, 20, 40), 90f))
-                g.FillRectangle(lgb, rect);
-            g.DrawRectangle(new Pen(color, 2), rect);
+            // Definición de alturas de los bloques
+            int alto1 = 220; // Oro
+            int alto2 = 160; // Plata
+            int alto3 = 110; // Bronce
 
-            using (Font f = new Font("Segoe UI", 11, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(Color.White))
+            // 2DO LUGAR (Izquierda)
+            if (_ranking.Count >= 2)
+                DibujarBloquePodio(g, "2", _ranking[1], centroX - anchoBloque - 10, basePodio, anchoBloque, alto2, Color.Silver);
+
+            // 3ER LUGAR (Derecha)
+            if (_ranking.Count >= 3)
+                DibujarBloquePodio(g, "3", _ranking[2], centroX + 10, basePodio, anchoBloque, alto3, Color.Chocolate);
+
+            // 1ER LUGAR (Centro - Se dibuja al final para que resalte)
+            if (_ranking.Count >= 1)
+                DibujarBloquePodio(g, "1", _ranking[0], centroX - (anchoBloque / 2), basePodio, anchoBloque, alto1, Color.Gold);
+        }
+
+        private void DibujarBloquePodio(Graphics g, string rank, PlayerScore player, int x, int baseY, int w, int h, Color color)
+        {
+            Rectangle rectBloque = new Rectangle(x, baseY - h, w, h);
+
+            // Dibujar el bloque físico
+            Juego.DrawRoundRect(g, rectBloque, 15, Color.FromArgb(40, 45, 80), color);
+
+            // Dibujar el número grande (1, 2 o 3)
+            using (Font fNum = new Font("Impact", 40))
+            using (SolidBrush b = new SolidBrush(Color.FromArgb(100, color)))
+                g.DrawString(rank, fNum, b, x + (w / 2) - 20, baseY - h + 10);
+
+            // Dibujar Nombre sobre el bloque
+            using (Font fNom = new Font("Segoe UI", 12, FontStyle.Bold))
             {
-                var sf = new StringFormat { Alignment = StringAlignment.Center };
-                g.DrawString(p.nombre, f, br, new RectangleF(x, rect.Y - 55, 180, 25), sf);
-                g.DrawString($"{p.puntos} PTS", f, br, new RectangleF(x, rect.Y - 28, 180, 22), sf);
-                g.DrawString($"{p.correctas} ✓", new Font("Segoe UI", 9), br,
-                    new RectangleF(x, rect.Y - 10, 180, 18), sf);
-                g.DrawString(rank, new Font("Impact", 28), br,
-                    new RectangleF(x, rect.Y + 8, 180, 55), sf);
+                string n = player.nombre.ToUpper();
+                SizeF s = g.MeasureString(n, fNom);
+                g.DrawString(n, fNom, Brushes.White, x + (w - s.Width) / 2, baseY - h - 60);
+            }
+
+            // Dibujar Puntos sobre el nombre
+            using (Font fPts = new Font("Consolas", 11, FontStyle.Bold))
+            {
+                string p = $"{player.puntos} PTS";
+                SizeF s = g.MeasureString(p, fPts);
+                g.DrawString(p, fPts, new SolidBrush(color), x + (w - s.Width) / 2, baseY - h - 35);
+            }
+
+            // Corona o icono simple para el 1er lugar
+            if (rank == "1")
+            {
+                g.DrawString("👑", new Font("Segoe UI", 24), Brushes.Gold, x + (w / 2) - 22, baseY - h - 110);
             }
         }
 
         protected override void OnMouseClick(MouseEventArgs e)
         {
-            base.OnMouseClick(e);
-            if (_zonaMenu.Contains(e.Location))
-                AbrirMenu();
-        }
-
-        protected override void OnMouseMove(MouseEventArgs e)
-        {
-            base.OnMouseMove(e);
-            this.Cursor = _zonaMenu.Contains(e.Location) ? Cursors.Hand : Cursors.Default;
-        }
-
-        protected override void OnKeyDown(KeyEventArgs e)
-        {
-            base.OnKeyDown(e);
-            if (e.KeyCode == Keys.Escape)
-                AbrirMenu();
-        }
-
-        private void AbrirMenu()
-        {
-            var cats = new Categorias();
-            cats.Show();
-            this.Hide();
-            this.Dispose();
+            Rectangle btnSalir = new Rectangle((this.ClientSize.Width - 200) / 2, this.ClientSize.Height - 80, 200, 45);
+            if (btnSalir.Contains(e.Location))
+            {
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
         }
     }
 }
