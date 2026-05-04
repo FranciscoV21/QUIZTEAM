@@ -12,7 +12,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace QUIZTEAM
-{
+{ //hola
+
     public partial class Juego : Form
     {
         private string _categoria;
