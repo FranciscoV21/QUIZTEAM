@@ -12,14 +12,14 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace QUIZTEAM
-{ //hola
-
+{
     public partial class Juego : Form
     {
         private string _categoria;
         private List<Pregunta> _preguntas = new List<Pregunta>();
         private int _indiceActual = 0, _correctas = 0, _incorrectas = 0, _seleccion = -1;
         private bool _respondida = false;
+        private bool _podioMostrado = false;
 
         private Rectangle[] _zonasOpciones = new Rectangle[4];
         private Rectangle _zonaSiguiente, _zonaSalir;
@@ -31,6 +31,9 @@ namespace QUIZTEAM
         private string _playerId = "";
         private string _playerNombre = "";
         private List<PlayerScore> _rankingActual = new List<PlayerScore>();
+
+        // Cancellation para el Task.Delay del podio
+        private CancellationTokenSource _cts = new CancellationTokenSource();
 
         public Juego(string categoria)
         {
@@ -61,7 +64,6 @@ namespace QUIZTEAM
                 string url = $"{Config.WsUrl}/ws/{Config.RoomId}";
                 await _ws.ConnectAsync(new Uri(url), CancellationToken.None);
 
-                // Recibir mensaje "connected"
                 var buffer = new byte[4096];
                 var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
@@ -70,10 +72,8 @@ namespace QUIZTEAM
                 _playerId = msg.GetProperty("player_id").GetString();
                 _playerNombre = msg.GetProperty("nombre").GetString();
 
-                // Iniciar escucha continua
                 _ = Task.Run(EscucharWebSocket);
 
-                // Enviar categoría seleccionada
                 await EnviarWs(new { type = "set_category", categoria = _categoria });
             }
             catch (Exception ex)
@@ -94,7 +94,7 @@ namespace QUIZTEAM
                     var msg = JsonSerializer.Deserialize<JsonElement>(json);
                     string type = msg.GetProperty("type").GetString();
 
-                    if (type == "score" || type == "final")
+                    if (type == "score")
                     {
                         var ranking = new List<PlayerScore>();
                         foreach (var item in msg.GetProperty("ranking").EnumerateArray())
@@ -108,15 +108,27 @@ namespace QUIZTEAM
                         }
                         _rankingActual = ranking;
 
-                        if (type == "final")
+                        if (!this.IsDisposed)
+                            this.Invoke((Action)(() => this.Invalidate()));
+                    }
+                    else if (type == "final")
+                    {
+                        var ranking = new List<PlayerScore>();
+                        foreach (var item in msg.GetProperty("ranking").EnumerateArray())
                         {
-                            this.Invoke((Action)(() =>
+                            ranking.Add(new PlayerScore
                             {
-                                var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, _rankingActual);
-                                formRes.Show();
-                                this.Hide();
-                            }));
+                                nombre = item.GetProperty("nombre").GetString(),
+                                puntos = item.GetProperty("puntos").GetInt32(),
+                                correctas = item.GetProperty("correctas").GetInt32()
+                            });
                         }
+                        _rankingActual = ranking;
+
+                        // Cancelar el Task.Delay de FinalizarJuego si sigue esperando
+                        _cts.Cancel();
+
+                        MostrarPodio();
                     }
                 }
                 catch { break; }
@@ -132,6 +144,29 @@ namespace QUIZTEAM
                 await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
             }
             catch { }
+        }
+
+        // =========================
+        // PODIO — único punto de entrada
+        // =========================
+        private void MostrarPodio()
+        {
+            if (_podioMostrado) return;
+            _podioMostrado = true;
+
+            Action mostrar = () =>
+            {
+                if (this.IsDisposed) return;
+                var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, _rankingActual);
+                formRes.Show();
+                this.Hide();
+                this.Dispose();
+            };
+
+            if (this.InvokeRequired)
+                this.Invoke(mostrar);
+            else
+                mostrar();
         }
 
         // =========================
@@ -184,7 +219,8 @@ namespace QUIZTEAM
                 {
                     if (string.IsNullOrEmpty(ruta)) { _imagenesOpciones.Add(null); continue; }
                     string path = Path.Combine(Application.StartupPath, "Imagenes", ruta);
-                    _imagenesOpciones.Add(File.Exists(path) ? Image.FromFile(path) : null);
+                    try { _imagenesOpciones.Add(File.Exists(path) ? Image.FromFile(path) : null); }
+                    catch { _imagenesOpciones.Add(null); }
                 }
             }
         }
@@ -254,7 +290,7 @@ namespace QUIZTEAM
             int x = this.ClientSize.Width - 200, y = 65;
             using (Font ft = new Font("Consolas", 9, FontStyle.Bold))
             using (SolidBrush brT = new SolidBrush(Color.FromArgb(233, 69, 96)))
-                g.DrawString("🏆 EN VIVO", ft, brT, x, y);
+                g.DrawString("EN VIVO", ft, brT, x, y);
 
             y += 20;
             int max = Math.Min(_rankingActual.Count, 5);
@@ -322,7 +358,14 @@ namespace QUIZTEAM
 
         protected override void OnMouseClick(MouseEventArgs e)
         {
-            if (_zonaSalir.Contains(e.Location)) { _ = CerrarWs(); this.Close(); return; }
+            if (_zonaSalir.Contains(e.Location))
+            {
+                _cts.Cancel();
+                _ = CerrarWs();
+                this.Hide();
+                this.Dispose();
+                return;
+            }
 
             if (_respondida && _zonaSiguiente.Contains(e.Location))
             {
@@ -350,7 +393,6 @@ namespace QUIZTEAM
                         bool correcto = i == _preguntas[_indiceActual].correcta - 1;
                         if (correcto) _correctas++; else _incorrectas++;
 
-                        // Enviar respuesta al servidor vía WebSocket
                         _ = EnviarWs(new
                         {
                             type = "respuesta",
@@ -366,10 +408,8 @@ namespace QUIZTEAM
 
         private async Task FinalizarJuego()
         {
-            // Notificar fin al servidor
             await EnviarWs(new { type = "end" });
 
-            // Guardar partida en la API REST
             try
             {
                 await client.PostAsync($"{Config.ApiUrl}/guardar-partida",
@@ -384,18 +424,17 @@ namespace QUIZTEAM
             }
             catch { }
 
-            // El podio llega por WebSocket (type: "final")
-            // Si no llega en 3 segundos, mostramos con ranking local
-            await Task.Delay(3000);
-
-            if (!this.IsDisposed)
+            try
             {
-                this.Invoke((Action)(() =>
-                {
-                    var formRes = new Resultado(_categoria, _correctas, _preguntas.Count, _rankingActual);
-                    formRes.Show();
-                    this.Hide();
-                }));
+                // Esperar respuesta del WebSocket, si se cancela no abre podio doble
+                await Task.Delay(3000, _cts.Token);
+
+                // Solo llega aquí si el WebSocket NO respondió con "final" a tiempo
+                MostrarPodio();
+            }
+            catch (TaskCanceledException)
+            {
+                // El WebSocket ya llamó MostrarPodio(), no hacer nada
             }
         }
 
@@ -411,6 +450,7 @@ namespace QUIZTEAM
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
+            _cts.Cancel();
             _ = CerrarWs();
             base.OnFormClosed(e);
         }
