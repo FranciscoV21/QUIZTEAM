@@ -27,7 +27,6 @@ namespace QUIZTEAM
             this.BackColor = Color.FromArgb(26, 26, 46);
             this.KeyPreview = true;
 
-            // Calcular zona del botón AQUÍ, no en OnPaint
             this.Load += (s, e) => RecalcularZonas();
         }
 
@@ -69,7 +68,7 @@ namespace QUIZTEAM
             // Podio
             DibujarPodio(g, midX, groundY);
 
-            // Botón volver — usa _zonaMenu que ya está calculado
+            // Botón volver
             Juego.DrawRoundRect(g, _zonaMenu, 24, Color.FromArgb(233, 69, 96), Color.Transparent);
             using (Font f = new Font("Georgia", 13, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.White))
@@ -122,11 +121,7 @@ namespace QUIZTEAM
         {
             base.OnMouseClick(e);
             if (_zonaMenu.Contains(e.Location))
-            {
-                var cats = new Categorias();
-                cats.Show();
-                this.Close();
-            }
+                AbrirMenu();
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
@@ -139,11 +134,15 @@ namespace QUIZTEAM
         {
             base.OnKeyDown(e);
             if (e.KeyCode == Keys.Escape)
-            {
-                var cats = new Categorias();
-                cats.Show();
-                this.Close();
-            }
+                AbrirMenu();
+        }
+
+        private void AbrirMenu()
+        {
+            var cats = new Categorias();
+            cats.Show();
+            this.Hide();
+            this.Dispose();
         }
     }
 }
