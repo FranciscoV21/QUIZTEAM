@@ -6,23 +6,41 @@ using System.Windows.Forms;
 
 namespace QUIZTEAM
 {
-    //Hola
     public partial class Form1 : Form
     {
         private Image _imgBienvenida;
         private Rectangle _zonaComenzon;
         private Rectangle _zonaSalir;
+        private Rectangle _rectImagen;
 
         public Form1()
         {
             InitializeComponent();
             this.DoubleBuffered = true;
-            this.ClientSize = new Size(780, 500);
-            this.Text = "QUIZTEAM";
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.WindowState = FormWindowState.Maximized;
             this.BackColor = Color.FromArgb(26, 26, 46);
+            this.KeyPreview = true;
 
-            _zonaComenzon = new Rectangle(160, 355, 460, 44);
-            _zonaSalir = new Rectangle(280, 412, 220, 36);
+            RecalcularZonas();
+        }
+
+        private void RecalcularZonas()
+        {
+            int W = this.ClientSize.Width;
+            int H = this.ClientSize.Height;
+            int centroX = W / 2;
+
+            _rectImagen = new Rectangle(centroX - W / 3, (int)(H * 0.08), W * 2 / 3, (int)(H * 0.45));
+            _zonaComenzon = new Rectangle(centroX - 230, (int)(H * 0.65), 460, 52);
+            _zonaSalir = new Rectangle(centroX - 110, (int)(H * 0.75), 220, 40);
+        }
+
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            RecalcularZonas();
+            this.Invalidate();
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -39,27 +57,28 @@ namespace QUIZTEAM
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
-            // Fondo
+            int W = this.ClientSize.Width;
+            int H = this.ClientSize.Height;
+
             g.Clear(Color.FromArgb(26, 26, 46));
 
-            // Área imagen
-            Rectangle rectImg = new Rectangle(80, 50, 620, 220);
-            DrawRoundRect(g, rectImg, 12, Color.FromArgb(15, 33, 62), Color.FromArgb(233, 69, 96));
+            // Imagen de bienvenida
+            DrawRoundRect(g, _rectImagen, 12, Color.FromArgb(15, 33, 62), Color.FromArgb(233, 69, 96));
             if (_imgBienvenida != null)
-                g.DrawImage(_imgBienvenida, rectImg);
+                g.DrawImage(_imgBienvenida, _rectImagen);
 
             // Título
-            using (Font fTitulo = new Font("Georgia", 22, FontStyle.Bold))
-            using (SolidBrush brTitulo = new SolidBrush(Color.FromArgb(234, 234, 234)))
+            using (Font fTitulo = new Font("Georgia", 26, FontStyle.Bold))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(234, 234, 234)))
             {
-                StringFormat sf = new StringFormat { Alignment = StringAlignment.Center };
-                g.DrawString("BIENVENIDO A NUESTRO QUIZ", fTitulo, brTitulo,
-                    new RectangleF(0, 292, 780, 40), sf);
+                var sf = new StringFormat { Alignment = StringAlignment.Center };
+                g.DrawString("BIENVENIDO A NUESTRO QUIZ", fTitulo, br,
+                    new RectangleF(0, H * 0.57f, W, 50), sf);
             }
 
             // Línea decorativa
             using (Pen p = new Pen(Color.FromArgb(233, 69, 96), 1.5f))
-                g.DrawLine(p, 180, 340, 600, 340);
+                g.DrawLine(p, W * 0.25f, H * 0.63f, W * 0.75f, H * 0.63f);
 
             // Botón Comenzar
             DrawBoton(g, _zonaComenzon, "CLICK AQUÍ PARA COMENZAR",
@@ -75,13 +94,11 @@ namespace QUIZTEAM
         private void DrawBoton(Graphics g, Rectangle r, string texto,
             Color fill, Color borde, Color colorTexto)
         {
-            using (SolidBrush br = new SolidBrush(fill))
-            using (Pen p = new Pen(borde, 1.5f))
+            DrawRoundRect(g, r, 22, fill, borde);
             using (Font f = new Font("Georgia", 13, FontStyle.Bold))
             using (SolidBrush brT = new SolidBrush(colorTexto))
             {
-                DrawRoundRect(g, r, 22, fill, borde);
-                StringFormat sf = new StringFormat
+                var sf = new StringFormat
                 { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                 g.DrawString(texto, f, brT, r, sf);
             }
@@ -89,17 +106,18 @@ namespace QUIZTEAM
 
         private void DrawRoundRect(Graphics g, Rectangle r, int radio, Color fill, Color borde)
         {
+            if (r.Width <= 0 || r.Height <= 0) return;
             GraphicsPath path = new GraphicsPath();
-            path.AddArc(r.X, r.Y, radio * 2, radio * 2, 180, 90);
-            path.AddArc(r.Right - radio * 2, r.Y, radio * 2, radio * 2, 270, 90);
-            path.AddArc(r.Right - radio * 2, r.Bottom - radio * 2, radio * 2, radio * 2, 0, 90);
-            path.AddArc(r.X, r.Bottom - radio * 2, radio * 2, radio * 2, 90, 90);
+            int d = radio * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
             path.CloseAllFigures();
 
-            using (SolidBrush br = new SolidBrush(fill))
-                g.FillPath(br, path);
-            using (Pen p = new Pen(borde, 1.5f))
-                g.DrawPath(p, path);
+            if (fill != Color.Transparent)
+                using (SolidBrush br = new SolidBrush(fill)) g.FillPath(br, path);
+            using (Pen p = new Pen(borde, 1.5f)) g.DrawPath(p, path);
         }
 
         protected override void OnMouseClick(MouseEventArgs e)
@@ -125,9 +143,12 @@ namespace QUIZTEAM
                 ? Cursors.Hand : Cursors.Default;
         }
 
-        private void ImagBienvenida_Click(object sender, EventArgs e)
+        protected override void OnKeyDown(KeyEventArgs e)
         {
-
+            base.OnKeyDown(e);
+            if (e.KeyCode == Keys.Escape) Application.Exit();
         }
+
+        private void ImagBienvenida_Click(object sender, EventArgs e) { }
     }
 }

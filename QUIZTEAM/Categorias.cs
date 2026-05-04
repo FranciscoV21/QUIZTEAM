@@ -1,270 +1,222 @@
 ﻿using System;
-
 using System.Collections.Generic;
-
 using System.Drawing;
-
 using System.Drawing.Drawing2D;
-
 using System.Net.Http;
-
 using System.Text.Json;
-
 using System.Windows.Forms;
 
 namespace QUIZTEAM
-
 {
-
     public partial class Categorias : Form
-
     {
-
         private List<(string nombre, Rectangle zona)> _categorias =
-
             new List<(string, Rectangle)>();
 
         private HttpClient client = new HttpClient();
-
         private string apiUrl = Config.ApiUrl;
+
         public Categorias()
-
         {
-
             InitializeComponent();
-
             this.DoubleBuffered = true;
-
-            this.ClientSize = new Size(780, 500);
-
-            this.Text = "Categorías";
-
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.WindowState = FormWindowState.Maximized;
             this.BackColor = Color.FromArgb(26, 26, 46);
+            this.KeyPreview = true;
 
             this.Load += async (s, e) => await CargarCategoriasDesdeAPI();
-
         }
 
         // =========================
-
         // API CALL
-
         // =========================
-
         private async System.Threading.Tasks.Task CargarCategoriasDesdeAPI()
-
         {
-
             _categorias.Clear();
-
             try
-
             {
-
                 string json = await client.GetStringAsync($"{apiUrl}/categorias");
-
                 var categorias = JsonSerializer.Deserialize<List<Categoria>>(json);
-
                 if (categorias != null)
-
-                {
-
                     foreach (var c in categorias)
-
-                    {
-
                         _categorias.Add((c.nombre, Rectangle.Empty));
-
-                    }
-
-                }
-
             }
-
             catch (Exception ex)
-
             {
-
                 MessageBox.Show("Error API: " + ex.Message);
-
             }
 
             CalcularZonas();
-
             this.Invalidate();
-
         }
 
         // =========================
-
-        // UI
-
+        // ZONAS DINÁMICAS
         // =========================
-
         private void CalcularZonas()
-
         {
+            int W = this.ClientSize.Width;
+            int H = this.ClientSize.Height;
 
-            int cols = 4, cw = 160, ch = 90, gx = 20, gy = 16;
+            int cols = 4;
+            int cw = 200;
+            int ch = 110;
+            int gx = 30;
+            int gy = 20;
 
-            int startX = (780 - (cols * cw + (cols - 1) * gx)) / 2;
-
-            int startY = 100;
+            int startX = (W - (cols * cw + (cols - 1) * gx)) / 2;
+            int startY = (int)(H * 0.28);
 
             for (int i = 0; i < _categorias.Count; i++)
-
             {
-
                 int col = i % cols, row = i / cols;
-
                 int x = startX + col * (cw + gx);
-
                 int y = startY + row * (ch + gy);
-
                 var (nombre, _) = _categorias[i];
-
                 _categorias[i] = (nombre, new Rectangle(x, y, cw, ch));
-
             }
-
         }
 
-        protected override void OnPaint(PaintEventArgs e)
-
+        protected override void OnResize(EventArgs e)
         {
+            base.OnResize(e);
+            CalcularZonas();
+            this.Invalidate();
+        }
 
+        // =========================
+        // UI
+        // =========================
+        protected override void OnPaint(PaintEventArgs e)
+        {
             base.OnPaint(e);
-
             Graphics g = e.Graphics;
-
             g.SmoothingMode = SmoothingMode.AntiAlias;
-
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.Clear(Color.FromArgb(26, 26, 46));
 
-            using (Font fT = new Font("Georgia", 20, FontStyle.Bold))
+            int W = this.ClientSize.Width;
+            int H = this.ClientSize.Height;
 
+            // Título
+            using (Font fT = new Font("Georgia", 26, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.White))
-
-            {
-
-                g.DrawString("Elige una categoría",
-
-                    fT, br,
-
-                    new RectangleF(0, 20, 780, 40),
-
+                g.DrawString("Elige una categoría", fT, br,
+                    new RectangleF(0, (int)(H * 0.10), W, 50),
                     new StringFormat { Alignment = StringAlignment.Center });
 
-            }
+            // Línea decorativa
+            using (Pen p = new Pen(Color.FromArgb(233, 69, 96), 2))
+                g.DrawLine(p, W * 0.25f, H * 0.20f, W * 0.75f, H * 0.20f);
 
+            // Subtítulo
+            using (Font fS = new Font("Consolas", 11))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
+                g.DrawString("Selecciona un tema para comenzar", fS, br,
+                    new RectangleF(0, (int)(H * 0.22), W, 24),
+                    new StringFormat { Alignment = StringAlignment.Center });
+
+            // Tarjetas
             string[] iconos = { "★", "◉", "♪", "⬡", "⊕", "◈", "⌘", "◆" };
-
             for (int i = 0; i < _categorias.Count; i++)
-
             {
-
                 var (nombre, rect) = _categorias[i];
-
                 DrawCard(g, rect, nombre, iconos[i % iconos.Length]);
-
             }
 
+            // Botón ESC abajo a la izquierda
+            var zonaEsc = new Rectangle(30, H - 52, 120, 38);
+            DrawRoundRect(g, zonaEsc, 17, Color.Transparent, Color.FromArgb(85, 85, 85));
+            using (Font f = new Font("Georgia", 10))
+            using (SolidBrush br = new SolidBrush(Color.Gray))
+                g.DrawString("ESC - SALIR", f, br, zonaEsc,
+                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
         }
 
         private void DrawCard(Graphics g, Rectangle r, string nombre, string icono)
-
         {
+            // Fondo y borde
+            DrawRoundRect(g, r, 12, Color.FromArgb(15, 33, 62), Color.FromArgb(233, 69, 96));
 
+            // Icono centrado arriba
+            using (Font f = new Font("Arial", 20, FontStyle.Bold))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
+                g.DrawString(icono, f, br,
+                    new RectangleF(r.X, r.Y + 10, r.Width, 36),
+                    new StringFormat { Alignment = StringAlignment.Center });
+
+            // Nombre centrado abajo
+            using (Font f = new Font("Georgia", 12, FontStyle.Bold))
+            using (SolidBrush br = new SolidBrush(Color.White))
+                g.DrawString(nombre, f, br,
+                    new RectangleF(r.X, r.Y + 58, r.Width, 30),
+                    new StringFormat { Alignment = StringAlignment.Center });
+
+            // "10 preguntas" debajo del nombre
+            using (Font f = new Font("Consolas", 9))
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
+                g.DrawString("10 preguntas", f, br,
+                    new RectangleF(r.X, r.Y + 84, r.Width, 20),
+                    new StringFormat { Alignment = StringAlignment.Center });
+        }
+
+        private void DrawRoundRect(Graphics g, Rectangle r, int radio, Color fill, Color borde)
+        {
+            if (r.Width <= 0 || r.Height <= 0) return;
             GraphicsPath path = new GraphicsPath();
-
-            int radius = 10;
-
-            path.AddArc(r.X, r.Y, radius * 2, radius * 2, 180, 90);
-
-            path.AddArc(r.Right - radius * 2, r.Y, radius * 2, radius * 2, 270, 90);
-
-            path.AddArc(r.Right - radius * 2, r.Bottom - radius * 2, radius * 2, radius * 2, 0, 90);
-
-            path.AddArc(r.X, r.Bottom - radius * 2, radius * 2, radius * 2, 90, 90);
-
+            int d = radio * 2;
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
             path.CloseAllFigures();
 
-            using (SolidBrush b = new SolidBrush(Color.FromArgb(15, 33, 62)))
-
-                g.FillPath(b, path);
-
-            using (Pen p = new Pen(Color.FromArgb(233, 69, 96), 2))
-
-                g.DrawPath(p, path);
-
-            using (Font f = new Font("Arial", 16, FontStyle.Bold))
-
-            using (SolidBrush br = new SolidBrush(Color.White))
-
-            {
-
-                g.DrawString(icono, f, br, r.X + 60, r.Y + 10);
-
-            }
-
-            using (Font f = new Font("Georgia", 11, FontStyle.Bold))
-
-            using (SolidBrush br = new SolidBrush(Color.White))
-
-            {
-
-                g.DrawString(nombre, f, br, r.X + 20, r.Y + 50);
-
-            }
-
+            if (fill != Color.Transparent)
+                using (SolidBrush br = new SolidBrush(fill)) g.FillPath(br, path);
+            using (Pen p = new Pen(borde, 2)) g.DrawPath(p, path);
         }
 
+        // =========================
+        // EVENTOS
+        // =========================
         protected override void OnMouseClick(MouseEventArgs e)
-
         {
-
             base.OnMouseClick(e);
-
             foreach (var (nombre, rect) in _categorias)
-
             {
-
                 if (rect.Contains(e.Location))
-
                 {
-
-                    MessageBox.Show("Seleccionaste: " + nombre);
-
                     var juego = new Juego(nombre);
-
                     juego.Show();
-
                     this.Hide();
-
                     return;
-
                 }
-
             }
-
         }
 
+        protected override void OnMouseMove(MouseEventArgs e)
+        {
+            base.OnMouseMove(e);
+            bool sobreCard = false;
+            foreach (var (_, rect) in _categorias)
+                if (rect.Contains(e.Location)) { sobreCard = true; break; }
+            this.Cursor = sobreCard ? Cursors.Hand : Cursors.Default;
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+            if (e.KeyCode == Keys.Escape) this.Close();
+        }
     }
 
     // =========================
-
     // MODELO API
-
     // =========================
-
     public class Categoria
-
     {
-
         public int id { get; set; }
-
         public string nombre { get; set; }
-
     }
-
 }
