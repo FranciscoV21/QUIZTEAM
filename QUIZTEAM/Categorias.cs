@@ -24,13 +24,9 @@ namespace QUIZTEAM
             this.WindowState = FormWindowState.Maximized;
             this.BackColor = Color.FromArgb(26, 26, 46);
             this.KeyPreview = true;
-
             this.Load += async (s, e) => await CargarCategoriasDesdeAPI();
         }
 
-        // =========================
-        // API CALL
-        // =========================
         private async System.Threading.Tasks.Task CargarCategoriasDesdeAPI()
         {
             _categorias.Clear();
@@ -46,25 +42,15 @@ namespace QUIZTEAM
             {
                 MessageBox.Show("Error API: " + ex.Message);
             }
-
             CalcularZonas();
             this.Invalidate();
         }
 
-        // =========================
-        // ZONAS DINÁMICAS
-        // =========================
         private void CalcularZonas()
         {
             int W = this.ClientSize.Width;
             int H = this.ClientSize.Height;
-
-            int cols = 4;
-            int cw = 200;
-            int ch = 110;
-            int gx = 30;
-            int gy = 20;
-
+            int cols = 4, cw = 200, ch = 110, gx = 30, gy = 20;
             int startX = (W - (cols * cw + (cols - 1) * gx)) / 2;
             int startY = (int)(H * 0.28);
 
@@ -85,9 +71,6 @@ namespace QUIZTEAM
             this.Invalidate();
         }
 
-        // =========================
-        // UI
-        // =========================
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -99,25 +82,21 @@ namespace QUIZTEAM
             int W = this.ClientSize.Width;
             int H = this.ClientSize.Height;
 
-            // Título
             using (Font fT = new Font("Georgia", 26, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.White))
                 g.DrawString("Elige una categoría", fT, br,
                     new RectangleF(0, (int)(H * 0.10), W, 50),
                     new StringFormat { Alignment = StringAlignment.Center });
 
-            // Línea decorativa
             using (Pen p = new Pen(Color.FromArgb(233, 69, 96), 2))
                 g.DrawLine(p, W * 0.25f, H * 0.20f, W * 0.75f, H * 0.20f);
 
-            // Subtítulo
             using (Font fS = new Font("Consolas", 11))
             using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
                 g.DrawString("Selecciona un tema para comenzar", fS, br,
                     new RectangleF(0, (int)(H * 0.22), W, 24),
                     new StringFormat { Alignment = StringAlignment.Center });
 
-            // Tarjetas
             string[] iconos = { "★", "◉", "♪", "⬡", "⊕", "◈", "⌘", "◆" };
             for (int i = 0; i < _categorias.Count; i++)
             {
@@ -125,7 +104,6 @@ namespace QUIZTEAM
                 DrawCard(g, rect, nombre, iconos[i % iconos.Length]);
             }
 
-            // Botón ESC abajo a la izquierda
             var zonaEsc = new Rectangle(30, H - 52, 120, 38);
             DrawRoundRect(g, zonaEsc, 17, Color.Transparent, Color.FromArgb(85, 85, 85));
             using (Font f = new Font("Georgia", 10))
@@ -136,24 +114,20 @@ namespace QUIZTEAM
 
         private void DrawCard(Graphics g, Rectangle r, string nombre, string icono)
         {
-            // Fondo y borde
             DrawRoundRect(g, r, 12, Color.FromArgb(15, 33, 62), Color.FromArgb(233, 69, 96));
 
-            // Icono centrado arriba
             using (Font f = new Font("Arial", 20, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
                 g.DrawString(icono, f, br,
                     new RectangleF(r.X, r.Y + 10, r.Width, 36),
                     new StringFormat { Alignment = StringAlignment.Center });
 
-            // Nombre centrado abajo
             using (Font f = new Font("Georgia", 12, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.White))
                 g.DrawString(nombre, f, br,
                     new RectangleF(r.X, r.Y + 58, r.Width, 30),
                     new StringFormat { Alignment = StringAlignment.Center });
 
-            // "10 preguntas" debajo del nombre
             using (Font f = new Font("Consolas", 9))
             using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
                 g.DrawString("10 preguntas", f, br,
@@ -177,9 +151,6 @@ namespace QUIZTEAM
             using (Pen p = new Pen(borde, 2)) g.DrawPath(p, path);
         }
 
-        // =========================
-        // EVENTOS
-        // =========================
         protected override void OnMouseClick(MouseEventArgs e)
         {
             base.OnMouseClick(e);
@@ -187,12 +158,17 @@ namespace QUIZTEAM
             {
                 if (rect.Contains(e.Location))
                 {
-                    var juego = new Juego(nombre);
-                    juego.Show();
-                    this.Hide();
+                    AbrirSalaEspera(nombre);
                     return;
                 }
             }
+        }
+
+        private void AbrirSalaEspera(string categoria)
+        {
+            var espera = new Espera(categoria);
+            espera.Show();
+            this.Hide();
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
@@ -211,9 +187,6 @@ namespace QUIZTEAM
         }
     }
 
-    // =========================
-    // MODELO API
-    // =========================
     public class Categoria
     {
         public int id { get; set; }
