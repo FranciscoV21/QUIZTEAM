@@ -138,7 +138,8 @@ namespace QUIZTEAM
         private void IniciarJuego()
         {
             if (_navegando) return;
-            _ = EnviarWs(new { type = "start_game", categoria = _categoria });
+            // Cambiamos "start_game" por "set_category" para que la API procese el inicio
+            _ = EnviarWs(new { type = "set_category", categoria = _categoria });
         }
 
         private async Task EnviarWs(object obj)
@@ -264,7 +265,15 @@ namespace QUIZTEAM
             try { if (_ws?.State == WebSocketState.Open) await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "User exit", CancellationToken.None); } catch { }
         }
 
-        private void ActualizarUI() { if (!this.IsDisposed) this.Invoke((Action)(() => this.Invalidate())); }
+        private void ActualizarUI()
+        {
+            if (!this.IsDisposed)
+            {
+                this.Invoke((Action)(() => {
+                    this.Invalidate(); // Esto obliga a ejecutar OnPaint y actualizar el texto del botón
+                }));
+            }
+        }
     }
 
 }
