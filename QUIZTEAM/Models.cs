@@ -28,11 +28,4 @@ namespace QUIZTEAM
         [JsonIgnore]
         public List<string> imagenesOpciones => new List<string> { img1, img2, img3, img4 };
     }
-
-    public class PlayerScore
-    {
-        public string nombre { get; set; }
-        public int puntos { get; set; }
-        public int correctas { get; set; }
-    }
 }
