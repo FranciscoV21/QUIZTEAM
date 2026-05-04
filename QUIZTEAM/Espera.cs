@@ -34,7 +34,6 @@ namespace QUIZTEAM
             this.BackColor = Color.FromArgb(26, 26, 46);
             this.KeyPreview = true;
 
-            // Timer para redibujar el contador
             _timer = new System.Windows.Forms.Timer();
             _timer.Interval = 500;
             _timer.Tick += (s, e) => this.Invalidate();
@@ -47,6 +46,9 @@ namespace QUIZTEAM
         {
             try
             {
+                // Limpiamos cualquier rastro de conexión previa antes de conectar
+                if (_ws != null) _ws.Dispose();
+
                 _ws = await Config.NuevoWebSocket();
                 string url = $"{Config.WsUrl}/ws/{Config.RoomId}";
                 await _ws.ConnectAsync(new Uri(url), CancellationToken.None);
@@ -59,43 +61,77 @@ namespace QUIZTEAM
                 _playerId = msg.GetProperty("player_id").GetString();
                 _playerNombre = msg.GetProperty("nombre").GetString();
                 _esLider = msg.GetProperty("es_lider").GetBoolean();
+
+                // El servidor nos dirá cuántos hay realmente en el primer 'sala_update'
                 _jugadoresEnSala = 1;
 
                 _ = Task.Run(EscucharWs);
-                this.Invoke((Action)(() => this.Invalidate()));
+                ActualizarUI();
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error conectando: " + ex.Message);
+                MessageBox.Show("Error de conexión: " + ex.Message);
                 this.Close();
             }
         }
 
         private async Task EscucharWs()
         {
-            var buffer = new byte[4096];
+            var buffer = new byte[8192]; // Buffer más grande para evitar cortes
             while (_ws != null && _ws.State == WebSocketState.Open)
             {
                 try
                 {
                     var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    if (result.MessageType == WebSocketMessageType.Close) break;
+
                     string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     var msg = JsonSerializer.Deserialize<JsonElement>(json);
-                    string type = msg.GetProperty("type").GetString();
 
-                    if (type == "sala_update")
+                    if (msg.TryGetProperty("type", out JsonElement typeProp))
                     {
-                        _jugadoresEnSala = msg.GetProperty("jugadores").GetInt32();
-                        if (!this.IsDisposed)
-                            this.Invoke((Action)(() => this.Invalidate()));
+                        string type = typeProp.GetString();
+
+                        if (type == "sala_update")
+                        {
+                            // Actualizamos el conteo real que manda el servidor
+                            _jugadoresEnSala = msg.GetProperty("jugadores").GetInt32();
+                            ActualizarUI();
+                        }
+                        else if (type == "start_game")
+                        {
+                            if (msg.TryGetProperty("categoria", out JsonElement catProp))
+                                _categoria = catProp.GetString();
+
+                            this.Invoke((Action)(() => IniciarJuegoLocal()));
+                        }
                     }
                 }
                 catch { break; }
             }
         }
 
+        private void IniciarJuegoLocal()
+        {
+            if (_navegando) return;
+            _navegando = true;
+            _timer.Stop();
+
+            // Pasamos la conexión activa al juego
+            var juego = new Juego(_categoria, _ws, _playerId, _playerNombre, _esLider, _soloModo);
+            juego.Show();
+            this.Hide();
+        }
+
+        private void IniciarJuego()
+        {
+            if (_navegando) return;
+            _ = EnviarWs(new { type = "start_game", categoria = _categoria });
+        }
+
         private async Task EnviarWs(object obj)
         {
+            if (_ws == null || _ws.State != WebSocketState.Open) return;
             try
             {
                 string json = JsonSerializer.Serialize(obj);
@@ -105,206 +141,102 @@ namespace QUIZTEAM
             catch { }
         }
 
-        private void IniciarJuego()
-        {
-            if (_navegando) return;
-            _navegando = true;
-            _timer.Stop();
-
-            // Enviar categoría al servidor
-            _ = EnviarWs(new { type = "set_category", categoria = _categoria });
-
-            // Abrir juego pasando el WS ya conectado
-            var juego = new Juego(_categoria, _ws, _playerId, _playerNombre, _esLider, _soloModo);
-            juego.Show();
-            this.Hide();
-            this.Dispose();
-        }
-
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
-            g.Clear(Color.FromArgb(26, 26, 46));
 
             int W = this.ClientSize.Width;
             int H = this.ClientSize.Height;
-            int midX = W / 2;
 
-            // Título
-            using (Font f = new Font("Georgia", 28, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(Color.White))
-                g.DrawString("SALA DE ESPERA", f, br,
-                    new RectangleF(0, H * 0.08f, W, 50),
-                    new StringFormat { Alignment = StringAlignment.Center });
+            // Dibujar fondo y textos
+            g.Clear(Color.FromArgb(26, 26, 46));
 
-            // Categoría
+            using (Font f = new Font("Georgia", 26, FontStyle.Bold))
+                DibujarTextoCentrado(g, "SALA DE ESPERA", f, Brushes.White, H * 0.1f);
+
             using (Font f = new Font("Consolas", 14))
-            using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
-                g.DrawString($"▶ Categoría: {_categoria}", f, br,
-                    new RectangleF(0, H * 0.17f, W, 30),
-                    new StringFormat { Alignment = StringAlignment.Center });
+                DibujarTextoCentrado(g, $"Categoría: {_categoria}", f, Brushes.Crimson, H * 0.2f);
 
-            // Jugadores conectados
-            DibujarJugadores(g, W, H, midX);
+            // Iconos de jugadores
+            DibujarIconosJugadores(g, W, H);
 
-            // Mensaje de espera o listo
-            string msg = _jugadoresEnSala >= 2
-                ? $"¡{_jugadoresEnSala} jugadores listos!  El líder puede iniciar."
-                : "Esperando más jugadores...";
+            // Botón principal
+            _zonaSolo = new Rectangle((W - 300) / 2, (int)(H * 0.8f), 300, 50);
+            Color cBtn = _esLider ? Color.FromArgb(233, 69, 96) : Color.FromArgb(45, 45, 70);
+            Juego.DrawRoundRect(g, _zonaSolo, 20, cBtn, Color.White);
 
-            Color msgColor = _jugadoresEnSala >= 2
-                ? Color.FromArgb(39, 174, 96)
-                : Color.FromArgb(136, 146, 164);
+            string txtBtn = _esLider ? (_jugadoresEnSala > 1 ? "INICIAR PARTIDA" : "ESPERANDO RIVAL...") : "EL LÍDER INICIARÁ...";
+            using (Font f = new Font("Georgia", 12, FontStyle.Bold))
+                DibujarTextoEnRect(g, txtBtn, f, Brushes.White, _zonaSolo);
 
-            using (Font f = new Font("Georgia", 13, FontStyle.Italic))
-            using (SolidBrush br = new SolidBrush(msgColor))
-                g.DrawString(msg, f, br,
-                    new RectangleF(0, H * 0.72f, W, 30),
-                    new StringFormat { Alignment = StringAlignment.Center });
-
-            // Botón INICIAR SOLO (siempre visible)
-            _zonaSolo = new Rectangle(midX - 160, (int)(H * 0.80f), 320, 50);
-            Color colorSolo = _soloModo
-                ? Color.FromArgb(233, 69, 96)
-                : Color.FromArgb(50, 50, 80);
-            Juego.DrawRoundRect(g, _zonaSolo, 20, colorSolo, Color.FromArgb(233, 69, 96));
-
-            string textoSolo = _esLider
-                ? (_jugadoresEnSala >= 2 ? "INICIAR PARTIDA  ▶" : "JUGAR SOLO  [ENTER]")
-                : "Esperando al líder...";
-
-            using (Font f = new Font("Georgia", 13, FontStyle.Bold))
-            using (SolidBrush br = new SolidBrush(Color.White))
-                g.DrawString(textoSolo, f, br, _zonaSolo,
-                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-
-            // Advertencia modo solo
-            if (_esLider && _jugadoresEnSala < 2)
-            {
-                using (Font f = new Font("Consolas", 10))
-                using (SolidBrush br = new SolidBrush(Color.FromArgb(200, 150, 50)))
-                    g.DrawString("⚠  Estás jugando solo — el podio solo te mostrará a ti",
-                        f, br,
-                        new RectangleF(0, (int)(H * 0.88f), W, 24),
-                        new StringFormat { Alignment = StringAlignment.Center });
-            }
-
-            // Botón salir
-            _zonaSalir = new Rectangle(30, H - 52, 120, 38);
-            Juego.DrawRoundRect(g, _zonaSalir, 17, Color.Transparent, Color.FromArgb(85, 85, 85));
-            using (Font f = new Font("Georgia", 10))
-            using (SolidBrush br = new SolidBrush(Color.Gray))
-                g.DrawString("ESC - SALIR", f, br, _zonaSalir,
-                    new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-
-            // Nombre del jugador
-            using (Font f = new Font("Consolas", 9))
-            using (SolidBrush br = new SolidBrush(Color.FromArgb(100, 100, 130)))
-                g.DrawString($"Conectado como: {_playerNombre}{(_esLider ? " 👑" : "")}",
-                    f, br, 30, 20);
+            // Botón Salir
+            _zonaSalir = new Rectangle(30, H - 60, 120, 40);
+            Juego.DrawRoundRect(g, _zonaSalir, 15, Color.Transparent, Color.Gray);
+            using (Font f = new Font("Segoe UI", 9))
+                DibujarTextoEnRect(g, "ESC - SALIR", f, Brushes.Gray, _zonaSalir);
         }
 
-        private void DibujarJugadores(Graphics g, int W, int H, int midX)
+        private void DibujarIconosJugadores(Graphics g, int W, int H)
         {
-            int total = Math.Max(_jugadoresEnSala, 1);
-            int iconSize = 70;
-            int gap = 40;
-            int startX = midX - (total * (iconSize + gap)) / 2;
-            int iconY = (int)(H * 0.35f);
+            int size = 80, gap = 30;
+            int totalW = (_jugadoresEnSala * size) + ((_jugadoresEnSala - 1) * gap);
+            int startX = (W - totalW) / 2;
+            int y = H / 2 - 40;
 
-            for (int i = 0; i < total; i++)
+            for (int i = 0; i < _jugadoresEnSala; i++)
             {
-                int x = startX + i * (iconSize + gap);
-                Color color = i < _jugadoresEnSala
-                    ? Color.FromArgb(39, 174, 96)
-                    : Color.FromArgb(60, 60, 80);
+                Rectangle r = new Rectangle(startX + (i * (size + gap)), y, size, size);
+                g.FillEllipse(new SolidBrush(Color.FromArgb(39, 174, 96)), r);
+                g.DrawEllipse(new Pen(Color.White, 2), r);
 
-                // Círculo jugador
-                using (SolidBrush br = new SolidBrush(color))
-                    g.FillEllipse(br, x, iconY, iconSize, iconSize);
-
-                // Número
-                using (Font f = new Font("Impact", 22))
-                using (SolidBrush br = new SolidBrush(Color.White))
-                    g.DrawString($"{i + 1}", f, br,
-                        new RectangleF(x, iconY, iconSize, iconSize),
-                        new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
-
-                // Etiqueta
-                string label = i == 0 && _jugadoresEnSala >= 1 ? _playerNombre : $"Jugador {i + 1}";
-                using (Font f = new Font("Consolas", 9))
-                using (SolidBrush br = new SolidBrush(Color.Silver))
-                    g.DrawString(label, f, br,
-                        new RectangleF(x - 10, iconY + iconSize + 8, iconSize + 20, 20),
-                        new StringFormat { Alignment = StringAlignment.Center });
+                using (Font f = new Font("Impact", 20))
+                    DibujarTextoEnRect(g, (i + 1).ToString(), f, Brushes.White, r);
             }
 
-            // Contador grande
-            using (Font f = new Font("Impact", 48))
-            using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
-                g.DrawString($"{_jugadoresEnSala}", f, br,
-                    new RectangleF(0, H * 0.55f, W, 60),
-                    new StringFormat { Alignment = StringAlignment.Center });
+            using (Font f = new Font("Georgia", 14, FontStyle.Italic))
+                DibujarTextoCentrado(g, $"{_jugadoresEnSala} jugadores en sala", f, Brushes.Silver, H * 0.65f);
+        }
 
-            using (Font f = new Font("Georgia", 12))
-            using (SolidBrush br = new SolidBrush(Color.Gray))
-                g.DrawString("jugadores conectados", f, br,
-                    new RectangleF(0, H * 0.63f, W, 24),
-                    new StringFormat { Alignment = StringAlignment.Center });
+        // Helpers de dibujo
+        private void DibujarTextoCentrado(Graphics g, string t, Font f, Brush b, float y)
+        {
+            SizeF s = g.MeasureString(t, f);
+            g.DrawString(t, f, b, (this.ClientSize.Width - s.Width) / 2, y);
+        }
+
+        private void DibujarTextoEnRect(Graphics g, string t, Font f, Brush b, Rectangle r)
+        {
+            StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            g.DrawString(t, f, b, r, sf);
         }
 
         protected override void OnMouseClick(MouseEventArgs e)
         {
-            base.OnMouseClick(e);
-
-            if (_zonaSalir.Contains(e.Location))
-            {
-                _timer.Stop();
-                _ = CerrarWs();
-                var cats = new Categorias();
-                cats.Show();
-                this.Hide();
-                this.Dispose();
-                return;
-            }
-
-            if (_zonaSolo.Contains(e.Location) && _esLider && !_navegando)
-                IniciarJuego();
+            if (_zonaSalir.Contains(e.Location)) Regresar();
+            if (_zonaSolo.Contains(e.Location) && _esLider) IniciarJuego();
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            base.OnKeyDown(e);
-            if (e.KeyCode == Keys.Enter && _esLider && !_navegando)
-                IniciarJuego();
-            if (e.KeyCode == Keys.Escape)
-            {
-                _timer.Stop();
-                _ = CerrarWs();
-                var cats = new Categorias();
-                cats.Show();
-                this.Hide();
-                this.Dispose();
-            }
+            if (e.KeyCode == Keys.Escape) Regresar();
+            if (e.KeyCode == Keys.Enter && _esLider) IniciarJuego();
+        }
+
+        private void Regresar()
+        {
+            _timer.Stop();
+            _ = CerrarWs();
+            new Categorias().Show();
+            this.Hide();
         }
 
         private async Task CerrarWs()
         {
-            try
-            {
-                if (_ws != null && _ws.State == WebSocketState.Open)
-                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
-            }
-            catch { }
+            try { if (_ws?.State == WebSocketState.Open) await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "User exit", CancellationToken.None); } catch { }
         }
 
-        protected override void OnFormClosed(FormClosedEventArgs e)
-        {
-            _timer?.Stop();
-            base.OnFormClosed(e);
-        }
+        private void ActualizarUI() { if (!this.IsDisposed) this.Invoke((Action)(() => this.Invalidate())); }
     }
 }

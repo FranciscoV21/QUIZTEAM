@@ -1,0 +1,69 @@
+[33md5dd5a1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m Reparacion de Podio
+[33m3022f5f[m Se agrega Espera.cs para coordinar el podio del juego
+[33md949dae[m Se arregla ventana de aparicion de podio
+[33m491c00a[m Arreglo de boton de regreso a menu y se cierre la ventana
+[33m315b151[m cambios en resultado para mejoras en botón de regresar
+[33m09c5d45[m cambios en tamaños
+[33m86bc481[m prueba de cambios
+[33m8894fd9[m Ultima actualizacion
+[33m848edb6[m Nueva correccion, resultado y juego.
+[33mfcfbd39[m Ya esta jalando.
+[33m9df8ce4[m Corecciones para que la api funcione, se agrego una clase, se modifico categoria, y se modifico juego
+[33me4a92e6[m Resultado se modifico para mostrar un ranking e integracion con la API
+[33mb34745d[m Se agrego clase Models
+[33m8c36b6a[m Se modifico Juego (adaptacion API)
+[33maa51423[m Merge pull request #6 from FranciscoV21/feature/api-fastapi
+[33ma21d57c[m[33m ([m[1;31morigin/feature/api-fastapi[m[33m)[m Update API multiplayer logic
+[33m661fd88[m Categorias adaptado con la API, Se agrego la libreria Text.JSON, OBLIGATORIO INSTALAR.
+[33m0a17b1c[m Agregado backend FastAPI con endpoints de preguntas y categorías
+[33m7dbd4ff[m Final.
+[33ma5db2f6[m Base local
+[33mce5a0fc[m Imagenes agregadas correctamente.
+[33ma3a7cba[m Se agregaron imagenes faltantes
+[33md2b5a9f[m Jalando al millon online
+[33mceaed8a[m guardar partida en base de datos
+[33m48f5216[m movimiento mouse y resultado
+[33md0e0757[m eventos mouse
+[33m03a50d3[m dibuja las opciones de imagen
+[33m09e50bf[m dibuja las opciones de texto
+[33m4fc2a74[m dibuja header y pregunta
+[33m7351474[m Dibuja header con score
+[33m1b876c8[m Dibuja progreso y lo llama al igual que la tarjeta de pregunta, opciones, siguiente y volver
+[33m2b8d264[m Calcula zonas y carga la imagen actual.
+[33mcf0dfb3[m Llama a funciones, carga preguntas  y opciones con o sin imagen
+[33mcb8b587[m Cuenta preguntas correctas e incorrectas
+[33ma265062[m Creación de Form juego con clase pregunta para mostrar preguntas de texto o imagen
+[33me607c4d[m Merge testdb con imágenes
+[33m503bdb3[m[33m ([m[1;31morigin/testdb[m[33m)[m agregue la mayoria de las imagenes a la carpeta imagenes
+[33m33f69d5[m Merge pull request #4 from FranciscoV21/testdb
+[33me6634b2[m mejorar  subir imagenes y preguntas a la base de datos organizada
+[33m2e31f0a[m agregar carpeta imagenes para posteriormete ser utilziadas en el forms
+[33mfd6e7cf[m Merge pull request #3 from FranciscoV21/testdb
+[33m40679a3[m cambios
+[33m85ec93e[m mejoras agregadas bd
+[33mba8d965[m Merge pull request #2 from FranciscoV21/testdb
+[33m56df47b[m cambios en base de datos, mejora preguntas
+[33mb69ad01[m Se arreglo un problema, se necesitaba poner la clase partial para juntar este proyecto .cs com .designer
+[33m9f12e8e[m Todo preparado para la insercion del Form Juego(Mi compañera de equipo)
+[33m1473d94[m Se agrego el archivo .cs de resultado, (aun no se prueba si funciona)
+[33mff52d65[m Modificacion del archivo Resultado.Designer para operar mediante la interfaz de dibujo
+[33m821a89d[m Actualización de la base de datos en testdb
+[33m1f59087[m Se arreglo Categorias.Designer (metodo)
+[33m3a4fec4[m otro cambio pequeño
+[33m2cff63c[m clicks y movimientos
+[33mc2a3bb0[m más draws
+[33md97d36f[m draws
+[33m4d38404[m cargar categorías y calcular zonas
+[33mf87c3a0[m empezando funciones de bases de datos
+[33m33ee16b[m modificación categorías.designer para adaptarlo
+[33mee580e0[m Se actualizo el forms1 designer
+[33m87cb53d[m Merge branch 'master' of https://github.com/FranciscoV21/QUIZTEAM
+[33md3a6b28[m Modificacion de Forms1 a  dibujado(inicio)
+[33m630230a[m Merge pull request #1 from FranciscoV21/testdb
+[33ma4e3df2[m Agregar TestDB con pruebas de conexión y primeras preguntas
+[33m248c25b[m ola
+[33m29bd310[m Se crearon botones Dinamicos dependiendo de la base de datos con FlowLayoutPanel
+[33m1f3c1eb[m Carpeta de imagenes
+[33m224bfc6[m Creacion de la bienvenida al proyecto
+[33m8daec62[m Agregar archivos de proyecto.
+[33mc4d755f[m Agregar .gitattributes, .gitignore y LICENSE.txt.
