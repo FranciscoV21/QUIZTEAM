@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Net.Http;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace QUIZTEAM
@@ -13,8 +13,7 @@ namespace QUIZTEAM
         private List<(string nombre, Rectangle zona)> _categorias =
             new List<(string, Rectangle)>();
 
-        private HttpClient client = new HttpClient();
-        private string apiUrl = Config.ApiUrl;
+        private ConexionServidor _conn;
 
         public Categorias()
         {
@@ -24,32 +23,55 @@ namespace QUIZTEAM
             this.WindowState = FormWindowState.Maximized;
             this.BackColor = Color.FromArgb(26, 26, 46);
             this.KeyPreview = true;
-            this.Load += async (s, e) => await CargarCategoriasDesdeAPI();
+            this.Load += async (s, e) => await CargarCategorias();
         }
 
-        private async System.Threading.Tasks.Task CargarCategoriasDesdeAPI()
+        private async Task CargarCategorias()
         {
             _categorias.Clear();
             try
             {
-                string json = await client.GetStringAsync($"{apiUrl}/categorias");
-                var categorias = JsonSerializer.Deserialize<List<Categoria>>(json);
-                if (categorias != null)
-                    foreach (var c in categorias)
-                        _categorias.Add((c.nombre, Rectangle.Empty));
+                _conn = new ConexionServidor();
+
+                // Esperamos la respuesta en un TaskCompletionSource
+                var tcs = new TaskCompletionSource<List<Categoria>>();
+
+                _conn.OnMensaje += msg =>
+                {
+                    if (msg.GetProperty("type").GetString() == "categorias")
+                    {
+                        var lista = JsonSerializer.Deserialize<List<Categoria>>(
+                            msg.GetProperty("data").GetRawText());
+                        tcs.TrySetResult(lista);
+                    }
+                };
+
+                await _conn.ConectarAsync();
+                await _conn.EnviarAsync(new { type = "get_categorias" });
+
+                // Esperamos máx 5 segundos
+                var cats = await Task.WhenAny(tcs.Task, Task.Delay(5000)) == tcs.Task
+                    ? tcs.Task.Result
+                    : new List<Categoria>();
+
+                foreach (var c in cats)
+                    _categorias.Add((c.nombre, Rectangle.Empty));
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error API: " + ex.Message);
+                MessageBox.Show("Error al conectar: " + ex.Message);
             }
+
+            _conn?.Dispose();
             CalcularZonas();
             this.Invalidate();
         }
 
+        // ── El resto del código de dibujo no cambia ──────────────────
+
         private void CalcularZonas()
         {
-            int W = this.ClientSize.Width;
-            int H = this.ClientSize.Height;
+            int W = this.ClientSize.Width, H = this.ClientSize.Height;
             int cols = 4, cw = 200, ch = 110, gx = 30, gy = 20;
             int startX = (W - (cols * cw + (cols - 1) * gx)) / 2;
             int startY = (int)(H * 0.28);
@@ -65,22 +87,17 @@ namespace QUIZTEAM
         }
 
         protected override void OnResize(EventArgs e)
-        {
-            base.OnResize(e);
-            CalcularZonas();
-            this.Invalidate();
-        }
+        { base.OnResize(e); CalcularZonas(); this.Invalidate(); }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
             Graphics g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.Clear(Color.FromArgb(26, 26, 46));
 
-            int W = this.ClientSize.Width;
-            int H = this.ClientSize.Height;
+            int W = this.ClientSize.Width, H = this.ClientSize.Height;
 
             using (Font fT = new Font("Georgia", 26, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.White))
@@ -115,23 +132,17 @@ namespace QUIZTEAM
         private void DrawCard(Graphics g, Rectangle r, string nombre, string icono)
         {
             DrawRoundRect(g, r, 12, Color.FromArgb(15, 33, 62), Color.FromArgb(233, 69, 96));
-
             using (Font f = new Font("Arial", 20, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
-                g.DrawString(icono, f, br,
-                    new RectangleF(r.X, r.Y + 10, r.Width, 36),
+                g.DrawString(icono, f, br, new RectangleF(r.X, r.Y + 10, r.Width, 36),
                     new StringFormat { Alignment = StringAlignment.Center });
-
             using (Font f = new Font("Georgia", 12, FontStyle.Bold))
             using (SolidBrush br = new SolidBrush(Color.White))
-                g.DrawString(nombre, f, br,
-                    new RectangleF(r.X, r.Y + 58, r.Width, 30),
+                g.DrawString(nombre, f, br, new RectangleF(r.X, r.Y + 58, r.Width, 30),
                     new StringFormat { Alignment = StringAlignment.Center });
-
             using (Font f = new Font("Consolas", 9))
             using (SolidBrush br = new SolidBrush(Color.FromArgb(136, 146, 164)))
-                g.DrawString("10 preguntas", f, br,
-                    new RectangleF(r.X, r.Y + 84, r.Width, 20),
+                g.DrawString("10 preguntas", f, br, new RectangleF(r.X, r.Y + 84, r.Width, 20),
                     new StringFormat { Alignment = StringAlignment.Center });
         }
 
@@ -145,7 +156,6 @@ namespace QUIZTEAM
             path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
             path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
             path.CloseAllFigures();
-
             if (fill != Color.Transparent)
                 using (SolidBrush br = new SolidBrush(fill)) g.FillPath(br, path);
             using (Pen p = new Pen(borde, 2)) g.DrawPath(p, path);
@@ -155,13 +165,7 @@ namespace QUIZTEAM
         {
             base.OnMouseClick(e);
             foreach (var (nombre, rect) in _categorias)
-            {
-                if (rect.Contains(e.Location))
-                {
-                    AbrirSalaEspera(nombre);
-                    return;
-                }
-            }
+                if (rect.Contains(e.Location)) { AbrirSalaEspera(nombre); return; }
         }
 
         private void AbrirSalaEspera(string categoria)
@@ -174,17 +178,14 @@ namespace QUIZTEAM
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
-            bool sobreCard = false;
+            bool sobre = false;
             foreach (var (_, rect) in _categorias)
-                if (rect.Contains(e.Location)) { sobreCard = true; break; }
-            this.Cursor = sobreCard ? Cursors.Hand : Cursors.Default;
+                if (rect.Contains(e.Location)) { sobre = true; break; }
+            this.Cursor = sobre ? Cursors.Hand : Cursors.Default;
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
-        {
-            base.OnKeyDown(e);
-            if (e.KeyCode == Keys.Escape) this.Close();
-        }
+        { base.OnKeyDown(e); if (e.KeyCode == Keys.Escape) this.Close(); }
     }
 
     public class Categoria

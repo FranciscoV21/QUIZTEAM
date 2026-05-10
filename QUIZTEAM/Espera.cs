@@ -1,11 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Net.WebSockets;
-using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -14,13 +10,10 @@ namespace QUIZTEAM
     public class Espera : Form
     {
         private string _categoria;
-        private ClientWebSocket _ws;
-        private string _playerId = "";
-        private string _playerNombre = "";
-        private bool _esLider = false;
+        private ConexionServidor _conn;
+        private string _playerId = "", _playerNombre = "";
+        private bool _esLider = false, _navegando = false;
         private int _jugadoresEnSala = 0;
-        private bool _soloModo = false;
-        private bool _navegando = false;
 
         private Rectangle _zonaSolo, _zonaSalir;
         private System.Windows.Forms.Timer _timer;
@@ -46,27 +39,15 @@ namespace QUIZTEAM
         {
             try
             {
-                // Limpiamos cualquier rastro de conexión previa antes de conectar
-                if (_ws != null) _ws.Dispose();
+                _conn = new ConexionServidor();
+                _conn.OnMensaje += ProcesarMensaje;
+                await _conn.ConectarAsync();
 
-                _ws = await Config.NuevoWebSocket();
-                string url = $"{Config.WsUrl}/ws/{Config.RoomId}";
-                await _ws.ConnectAsync(new Uri(url), CancellationToken.None);
-
-                var buffer = new byte[4096];
-                var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                var msg = JsonSerializer.Deserialize<JsonElement>(json);
-
-                _playerId = msg.GetProperty("player_id").GetString();
-                _playerNombre = msg.GetProperty("nombre").GetString();
-                _esLider = msg.GetProperty("es_lider").GetBoolean();
-
-                // El servidor nos dirá cuántos hay realmente en el primer 'sala_update'
-                _jugadoresEnSala = 1;
-
-                _ = Task.Run(EscucharWs);
-                ActualizarUI();
+                await _conn.EnviarAsync(new
+                {
+                    type = "unirse",
+                    room_id = Config.RoomId
+                });
             }
             catch (Exception ex)
             {
@@ -75,51 +56,30 @@ namespace QUIZTEAM
             }
         }
 
-        private async Task EscucharWs()
+        private void ProcesarMensaje(JsonElement msg)
         {
-            var buffer = new byte[8192];
-            while (_ws != null && _ws.State == WebSocketState.Open)
+            if (!msg.TryGetProperty("type", out var tp)) return;
+            string type = tp.GetString();
+
+            if (type == "connected")
             {
-                try
-                {
-                    var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    if (result.MessageType == WebSocketMessageType.Close) break;
+                _playerId = msg.GetProperty("player_id").GetString();
+                _playerNombre = msg.GetProperty("nombre").GetString();
+                _esLider = msg.GetProperty("es_lider").GetBoolean();
+                ActualizarUI();
+            }
+            else if (type == "sala_update")
+            {
+                _jugadoresEnSala = msg.GetProperty("jugadores").GetInt32();
+                ActualizarUI();
+            }
+            else if (type == "start_game")
+            {
+                if (msg.TryGetProperty("categoria", out var cp))
+                    _categoria = cp.GetString();
 
-                    string json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    var msg = JsonSerializer.Deserialize<JsonElement>(json);
-
-                    if (msg.TryGetProperty("type", out JsonElement typeProp))
-                    {
-                        string type = typeProp.GetString();
-
-                        if (type == "sala_update")
-                        {
-                            // 1. Actualizamos el conteo real
-                            _jugadoresEnSala = msg.GetProperty("jugadores").GetInt32();
-
-                            // 2. REVISAMOS SI LA API NOS DIO EL LIDERAZGO
-                            // Esto pasa cuando el líder anterior se desconecta
-                            if (msg.TryGetProperty("nuevo_lider", out JsonElement liderProp))
-                            {
-                                if (liderProp.GetBoolean())
-                                {
-                                    _esLider = true; // Ahora este cliente tiene el control
-                                }
-                            }
-
-                            // 3. Refrescamos la interfaz en el hilo principal
-                            this.Invoke((Action)(() => ActualizarUI()));
-                        }
-                        else if (type == "start_game")
-                        {
-                            if (msg.TryGetProperty("categoria", out JsonElement catProp))
-                                _categoria = catProp.GetString();
-
-                            this.Invoke((Action)(() => IniciarJuegoLocal()));
-                        }
-                    }
-                }
-                catch { break; }
+                if (!this.IsDisposed)
+                    this.Invoke((Action)IniciarJuegoLocal);
             }
         }
 
@@ -129,8 +89,7 @@ namespace QUIZTEAM
             _navegando = true;
             _timer.Stop();
 
-            // Pasamos la conexión activa al juego
-            var juego = new Juego(_categoria, _ws, _playerId, _playerNombre, _esLider, _soloModo);
+            var juego = new Juego(_categoria, _conn, _playerId, _playerNombre, _esLider);
             juego.Show();
             this.Hide();
         }
@@ -138,20 +97,13 @@ namespace QUIZTEAM
         private void IniciarJuego()
         {
             if (_navegando) return;
-            // Cambiamos "start_game" por "set_category" para que la API procese el inicio
-            _ = EnviarWs(new { type = "set_category", categoria = _categoria });
+            _ = _conn.EnviarAsync(new { type = "start_game", categoria = _categoria });
         }
 
-        private async Task EnviarWs(object obj)
+        private void ActualizarUI()
         {
-            if (_ws == null || _ws.State != WebSocketState.Open) return;
-            try
-            {
-                string json = JsonSerializer.Serialize(obj);
-                var bytes = Encoding.UTF8.GetBytes(json);
-                await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-            catch { }
+            if (!this.IsDisposed)
+                this.Invoke((Action)(() => this.Invalidate()));
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -160,10 +112,7 @@ namespace QUIZTEAM
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            int W = this.ClientSize.Width;
-            int H = this.ClientSize.Height;
-
-            // Dibujar fondo y textos
+            int W = this.ClientSize.Width, H = this.ClientSize.Height;
             g.Clear(Color.FromArgb(26, 26, 46));
 
             using (Font f = new Font("Georgia", 26, FontStyle.Bold))
@@ -172,38 +121,23 @@ namespace QUIZTEAM
             using (Font f = new Font("Consolas", 14))
                 DibujarTextoCentrado(g, $"Categoría: {_categoria}", f, Brushes.Crimson, H * 0.2f);
 
-            // Iconos de jugadores
             DibujarIconosJugadores(g, W, H);
 
-            // Botón principal
             _zonaSolo = new Rectangle((W - 300) / 2, (int)(H * 0.8f), 300, 50);
             Color cBtn = _esLider ? Color.FromArgb(233, 69, 96) : Color.FromArgb(45, 45, 70);
             Juego.DrawRoundRect(g, _zonaSolo, 20, cBtn, Color.White);
 
-            string txtBtn = _esLider ? (_jugadoresEnSala > 1 ? "INICIAR PARTIDA" : "ESPERANDO RIVAL...") : "EL LÍDER INICIARÁ...";
+            string txtBtn = _esLider
+                ? (_jugadoresEnSala > 1 ? "INICIAR PARTIDA" : "ESPERANDO RIVAL...")
+                : "EL LÍDER INICIARÁ...";
+
             using (Font f = new Font("Georgia", 12, FontStyle.Bold))
                 DibujarTextoEnRect(g, txtBtn, f, Brushes.White, _zonaSolo);
 
-            // Botón Salir
             _zonaSalir = new Rectangle(30, H - 60, 120, 40);
             Juego.DrawRoundRect(g, _zonaSalir, 15, Color.Transparent, Color.Gray);
             using (Font f = new Font("Segoe UI", 9))
                 DibujarTextoEnRect(g, "ESC - SALIR", f, Brushes.Gray, _zonaSalir);
-        }
-        protected override void OnFormClosing(FormClosingEventArgs e)
-        {
-            // 1. Detener el timer de dibujo
-            _timer?.Stop();
-
-            // 2. Intentar avisar a la API que nos desconectamos
-            if (_ws != null && _ws.State == WebSocketState.Open)
-            {
-                // Enviamos un mensaje de tipo 'leave' si tu API lo soporta
-                // o simplemente cerramos el socket formalmente.
-                var closeTask = _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Cierre de cliente", CancellationToken.None);
-            }
-
-            base.OnFormClosing(e);
         }
 
         private void DibujarIconosJugadores(Graphics g, int W, int H)
@@ -218,7 +152,6 @@ namespace QUIZTEAM
                 Rectangle r = new Rectangle(startX + (i * (size + gap)), y, size, size);
                 g.FillEllipse(new SolidBrush(Color.FromArgb(39, 174, 96)), r);
                 g.DrawEllipse(new Pen(Color.White, 2), r);
-
                 using (Font f = new Font("Impact", 20))
                     DibujarTextoEnRect(g, (i + 1).ToString(), f, Brushes.White, r);
             }
@@ -227,7 +160,6 @@ namespace QUIZTEAM
                 DibujarTextoCentrado(g, $"{_jugadoresEnSala} jugadores en sala", f, Brushes.Silver, H * 0.65f);
         }
 
-        // Helpers de dibujo
         private void DibujarTextoCentrado(Graphics g, string t, Font f, Brush b, float y)
         {
             SizeF s = g.MeasureString(t, f);
@@ -236,7 +168,8 @@ namespace QUIZTEAM
 
         private void DibujarTextoEnRect(Graphics g, string t, Font f, Brush b, Rectangle r)
         {
-            StringFormat sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+            var sf = new StringFormat
+            { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
             g.DrawString(t, f, b, r, sf);
         }
 
@@ -255,25 +188,9 @@ namespace QUIZTEAM
         private void Regresar()
         {
             _timer.Stop();
-            _ = CerrarWs();
+            _conn?.Dispose();
             new Categorias().Show();
             this.Hide();
         }
-
-        private async Task CerrarWs()
-        {
-            try { if (_ws?.State == WebSocketState.Open) await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "User exit", CancellationToken.None); } catch { }
-        }
-
-        private void ActualizarUI()
-        {
-            if (!this.IsDisposed)
-            {
-                this.Invoke((Action)(() => {
-                    this.Invalidate(); // Esto obliga a ejecutar OnPaint y actualizar el texto del botón
-                }));
-            }
-        }
     }
-
 }
