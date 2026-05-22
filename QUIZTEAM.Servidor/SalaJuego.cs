@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Sockets;
@@ -28,10 +27,9 @@ namespace QUIZTEAM.Servidor
 
         public SalaJuego(string id) { Id = id; }
 
-        // ── Unirse ───────────────────────────────────────────────────
         public JugadorEnSala Unirse(TcpClient cliente)
         {
-            string playerId = Guid.NewGuid().ToString("N").Substring(0, 8);
+            string playerId = System.Guid.NewGuid().ToString("N").Substring(0, 8);
             int numero = _jugadores.Count + 1;
             bool esLider = _jugadores.IsEmpty;
 
@@ -50,7 +48,6 @@ namespace QUIZTEAM.Servidor
             return jugador;
         }
 
-        // ── Salir ────────────────────────────────────────────────────
         public void Salir(string playerId)
         {
             _jugadores.TryRemove(playerId, out _);
@@ -59,7 +56,6 @@ namespace QUIZTEAM.Servidor
         public bool EstaVacia() => _jugadores.IsEmpty;
         public int CuentaJugadores() => _jugadores.Count;
 
-        // ── Actualizar puntaje ───────────────────────────────────────
         public List<PlayerScore> ActualizarPuntaje(string playerId, int puntos)
         {
             if (_jugadores.TryGetValue(playerId, out var j))
@@ -85,7 +81,6 @@ namespace QUIZTEAM.Servidor
                 .ToList();
         }
 
-        // ── Broadcast a todos ────────────────────────────────────────
         public async Task BroadcastAsync(object mensaje)
         {
             string json = JsonSerializer.Serialize(mensaje) + "\n";
@@ -98,11 +93,10 @@ namespace QUIZTEAM.Servidor
                     if (j.Cliente.Connected)
                         await j.Cliente.GetStream().WriteAsync(bytes, 0, bytes.Length);
                 }
-                catch { /* cliente desconectado, ignorar */ }
+                catch { }
             }
         }
 
-        // ── Enviar solo a un jugador ─────────────────────────────────
         public async Task EnviarA(string playerId, object mensaje)
         {
             if (!_jugadores.TryGetValue(playerId, out var j)) return;

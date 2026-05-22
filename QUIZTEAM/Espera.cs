@@ -41,8 +41,8 @@ namespace QUIZTEAM
             {
                 _conn = new ConexionServidor();
                 _conn.OnMensaje += ProcesarMensaje;
-                await _conn.ConectarAsync();
 
+                await _conn.ConectarAsync();
                 await _conn.EnviarAsync(new
                 {
                     type = "unirse",
@@ -143,11 +143,12 @@ namespace QUIZTEAM
         private void DibujarIconosJugadores(Graphics g, int W, int H)
         {
             int size = 80, gap = 30;
-            int totalW = (_jugadoresEnSala * size) + ((_jugadoresEnSala - 1) * gap);
+            int n = _jugadoresEnSala < 1 ? 1 : _jugadoresEnSala;
+            int totalW = (n * size) + ((n - 1) * gap);
             int startX = (W - totalW) / 2;
             int y = H / 2 - 40;
 
-            for (int i = 0; i < _jugadoresEnSala; i++)
+            for (int i = 0; i < n; i++)
             {
                 Rectangle r = new Rectangle(startX + (i * (size + gap)), y, size, size);
                 g.FillEllipse(new SolidBrush(Color.FromArgb(39, 174, 96)), r);
@@ -157,7 +158,7 @@ namespace QUIZTEAM
             }
 
             using (Font f = new Font("Georgia", 14, FontStyle.Italic))
-                DibujarTextoCentrado(g, $"{_jugadoresEnSala} jugadores en sala", f, Brushes.Silver, H * 0.65f);
+                DibujarTextoCentrado(g, $"{n} jugadores en sala", f, Brushes.Silver, H * 0.65f);
         }
 
         private void DibujarTextoCentrado(Graphics g, string t, Font f, Brush b, float y)
@@ -176,13 +177,13 @@ namespace QUIZTEAM
         protected override void OnMouseClick(MouseEventArgs e)
         {
             if (_zonaSalir.Contains(e.Location)) Regresar();
-            if (_zonaSolo.Contains(e.Location) && _esLider) IniciarJuego();
+            else if (_zonaSolo.Contains(e.Location) && _esLider) IniciarJuego();
         }
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
             if (e.KeyCode == Keys.Escape) Regresar();
-            if (e.KeyCode == Keys.Enter && _esLider) IniciarJuego();
+            else if (e.KeyCode == Keys.Enter && _esLider) IniciarJuego();
         }
 
         private void Regresar()

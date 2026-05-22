@@ -19,8 +19,7 @@ namespace QUIZTEAM
         private List<Pregunta> _preguntas = new List<Pregunta>();
         private List<PlayerScore> _rankingActual = new List<PlayerScore>();
         private int _indiceActual = 0, _correctas = 0, _incorrectas = 0;
-        private int _seleccion = -1;
-        private int _jugadoresEnSala = 1;
+        private int _seleccion = -1, _jugadoresEnSala = 1;
         private bool _respondida = false, _podioMostrado = false;
 
         private Rectangle[] _zonasOpciones = new Rectangle[4];
@@ -45,16 +44,14 @@ namespace QUIZTEAM
 
         private async Task InicializarJuego()
         {
-            // Reutilizamos la conexión existente, solo cambiamos el handler
-            _conn.OnMensaje += ProcesarMensajeWs;
             await CargarPreguntas();
+            _conn.OnMensaje += ProcesarMensaje;
             CalcularZonas();
             CargarImagenesActual();
             this.Invalidate();
         }
 
-        // ── Escucha de mensajes del servidor ─────────────────────────
-        private void ProcesarMensajeWs(JsonElement msg)
+        private void ProcesarMensaje(JsonElement msg)
         {
             if (!msg.TryGetProperty("type", out var tp)) return;
             string type = tp.GetString();
@@ -95,7 +92,6 @@ namespace QUIZTEAM
                 this.Invoke((Action)(() => this.Invalidate()));
         }
 
-        // ── Cargar preguntas ─────────────────────────────────────────
         private async Task CargarPreguntas()
         {
             var tcs = new TaskCompletionSource<List<Pregunta>>();
@@ -107,29 +103,26 @@ namespace QUIZTEAM
                 {
                     var lista = JsonSerializer.Deserialize<List<Pregunta>>(
                         msg.GetProperty("data").GetRawText());
-                    tcs.TrySetResult(lista);
-                    _conn.OnMensaje -= handler; // ya no necesitamos este handler temporal
-                    _conn.OnMensaje += ProcesarMensajeWs; // ahora sí el handler del juego
+                    tcs.TrySetResult(lista ?? new List<Pregunta>());
+                    _conn.OnMensaje -= handler;
                 }
             };
 
-            // Quitamos el handler del juego momentáneamente para no interferir
-            _conn.OnMensaje -= ProcesarMensajeWs;
             _conn.OnMensaje += handler;
-
             await _conn.EnviarAsync(new { type = "get_preguntas", categoria = _categoria });
 
-            var ganador = await Task.WhenAny(tcs.Task, Task.Delay(8000));
-            if (ganador == tcs.Task)
-                _preguntas = tcs.Task.Result ?? new List<Pregunta>();
+            await Task.WhenAny(tcs.Task, Task.Delay(8000));
+
+            if (tcs.Task.IsCompleted)
+                _preguntas = tcs.Task.Result;
             else
             {
+                _conn.OnMensaje -= handler;
                 MessageBox.Show("Timeout al cargar preguntas.");
                 this.Close();
             }
         }
 
-        // ── Finalizar juego ──────────────────────────────────────────
         private async Task FinalizarJuego()
         {
             await _conn.EnviarAsync(new
@@ -140,8 +133,6 @@ namespace QUIZTEAM
                 total = _preguntas.Count
             });
 
-            // El servidor responde con "final" y ProcesarMensajeWs llama MostrarPodio
-            // Fallback: si no llega en 5s, mostramos podio local
             await Task.Delay(5000);
             MostrarPodio();
         }
@@ -163,8 +154,6 @@ namespace QUIZTEAM
             if (this.InvokeRequired) this.Invoke(mostrar);
             else mostrar();
         }
-
-        // ── Zones y dibujo (sin cambios respecto al original) ────────
 
         private void CalcularZonas()
         {
@@ -209,19 +198,19 @@ namespace QUIZTEAM
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
 
             var p = _preguntas[_indiceActual];
-            string liderTag = _esLider ? " 👑" : "";
+            string tag = _esLider ? " 👑" : "";
+            int barW = this.ClientSize.Width - 60;
 
             using (Font f = new Font("Consolas", 10))
             using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
                 g.DrawString(
-                    $"▶ QUIZTEAM / {_categoria} — {_playerNombre}{liderTag} — " +
+                    $"▶ QUIZTEAM / {_categoria} — {_playerNombre}{tag} — " +
                     $"{_indiceActual + 1} de {_preguntas.Count}  |  🎮 {_jugadoresEnSala} en sala",
                     f, br, 30, 20);
 
-            int barW = this.ClientSize.Width - 60;
             DrawRoundRect(g, new Rectangle(30, 45, barW, 8), 4, Color.FromArgb(51, 51, 68), Color.Transparent);
-            int progreso = (int)(barW * (_indiceActual + 1.0) / _preguntas.Count);
-            DrawRoundRect(g, new Rectangle(30, 45, progreso, 8), 4, Color.FromArgb(233, 69, 96), Color.Transparent);
+            int prog = (int)(barW * (_indiceActual + 1.0) / _preguntas.Count);
+            DrawRoundRect(g, new Rectangle(30, 45, prog, 8), 4, Color.FromArgb(233, 69, 96), Color.Transparent);
 
             DibujarRankingLateral(g);
 
@@ -262,11 +251,10 @@ namespace QUIZTEAM
             if (_rankingActual.Count == 0) return;
             int x = this.ClientSize.Width - 200, y = 65;
             using (Font ft = new Font("Consolas", 9, FontStyle.Bold))
-            using (SolidBrush brT = new SolidBrush(Color.FromArgb(233, 69, 96)))
-                g.DrawString("EN VIVO", ft, brT, x, y);
+            using (SolidBrush br = new SolidBrush(Color.FromArgb(233, 69, 96)))
+                g.DrawString("EN VIVO", ft, br, x, y);
             y += 20;
-            int max = Math.Min(_rankingActual.Count, 5);
-            for (int i = 0; i < max; i++)
+            for (int i = 0; i < Math.Min(_rankingActual.Count, 5); i++)
             {
                 var ps = _rankingActual[i];
                 bool esYo = ps.nombre == _playerNombre;
@@ -282,7 +270,9 @@ namespace QUIZTEAM
             for (int i = 0; i < 4; i++)
             {
                 var r = _zonasOpciones[i];
-                Color fill = Color.FromArgb(15, 52, 96), borde = Color.FromArgb(51, 51, 85);
+                Color fill = Color.FromArgb(15, 52, 96);
+                Color borde = Color.FromArgb(51, 51, 85);
+
                 if (_respondida)
                 {
                     if (i == p.correcta - 1) { fill = Color.FromArgb(27, 77, 46); borde = Color.FromArgb(39, 174, 96); }

@@ -13,22 +13,17 @@ namespace QUIZTEAM
         private NetworkStream _stream;
         private StreamReader _reader;
 
-        // Evento que dispara cuando llega un mensaje del servidor
         public event Action<JsonElement> OnMensaje;
 
-        // ── Conectar ─────────────────────────────────────────────────
         public async Task ConectarAsync()
         {
             _tcp = new TcpClient();
             await _tcp.ConnectAsync(Config.ServerIP, Config.ServerPort);
             _stream = _tcp.GetStream();
             _reader = new StreamReader(_stream, Encoding.UTF8);
-
-            // Escuchar en background
             _ = Task.Run(EscucharAsync);
         }
 
-        // ── Escuchar mensajes entrantes ──────────────────────────────
         private async Task EscucharAsync()
         {
             try
@@ -42,13 +37,12 @@ namespace QUIZTEAM
                         var msg = JsonSerializer.Deserialize<JsonElement>(linea);
                         OnMensaje?.Invoke(msg);
                     }
-                    catch { /* JSON malformado, ignorar */ }
+                    catch { }
                 }
             }
-            catch { /* servidor cerró conexión */ }
+            catch { }
         }
 
-        // ── Enviar mensaje ───────────────────────────────────────────
         public async Task EnviarAsync(object mensaje)
         {
             if (_tcp == null || !_tcp.Connected) return;
@@ -65,9 +59,9 @@ namespace QUIZTEAM
 
         public void Dispose()
         {
-            _reader?.Dispose();
-            _stream?.Dispose();
-            _tcp?.Close();
+            try { _reader?.Dispose(); } catch { }
+            try { _stream?.Dispose(); } catch { }
+            try { _tcp?.Close(); } catch { }
         }
     }
 }

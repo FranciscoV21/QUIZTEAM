@@ -24,9 +24,9 @@ namespace QUIZTEAM.Servidor
             while (true)
             {
                 TcpClient cliente = await listener.AcceptTcpClientAsync();
-                Console.WriteLine($"[+] Cliente conectado: {((IPEndPoint)cliente.Client.RemoteEndPoint).Address}");
+                string ip = ((IPEndPoint)cliente.Client.RemoteEndPoint).Address.ToString();
+                Console.WriteLine($"[+] Cliente conectado: {ip}");
 
-                // Cada cliente en su propio Task — no bloqueamos el loop
                 _ = Task.Run(async () =>
                 {
                     var manejador = new ManejadorCliente(cliente, _salas);

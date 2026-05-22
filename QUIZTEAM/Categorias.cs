@@ -13,8 +13,6 @@ namespace QUIZTEAM
         private List<(string nombre, Rectangle zona)> _categorias =
             new List<(string, Rectangle)>();
 
-        private ConexionServidor _conn;
-
         public Categorias()
         {
             InitializeComponent();
@@ -29,45 +27,46 @@ namespace QUIZTEAM
         private async Task CargarCategorias()
         {
             _categorias.Clear();
+            ConexionServidor conn = null;
             try
             {
-                _conn = new ConexionServidor();
-
-                // Esperamos la respuesta en un TaskCompletionSource
+                conn = new ConexionServidor();
                 var tcs = new TaskCompletionSource<List<Categoria>>();
 
-                _conn.OnMensaje += msg =>
+                conn.OnMensaje += msg =>
                 {
                     if (msg.GetProperty("type").GetString() == "categorias")
                     {
                         var lista = JsonSerializer.Deserialize<List<Categoria>>(
                             msg.GetProperty("data").GetRawText());
-                        tcs.TrySetResult(lista);
+                        tcs.TrySetResult(lista ?? new List<Categoria>());
                     }
                 };
 
-                await _conn.ConectarAsync();
-                await _conn.EnviarAsync(new { type = "get_categorias" });
+                await conn.ConectarAsync();
+                await conn.EnviarAsync(new { type = "get_categorias" });
 
-                // Esperamos máx 5 segundos
-                var cats = await Task.WhenAny(tcs.Task, Task.Delay(5000)) == tcs.Task
-                    ? tcs.Task.Result
-                    : new List<Categoria>();
+                await Task.WhenAny(tcs.Task, Task.Delay(5000));
 
-                foreach (var c in cats)
-                    _categorias.Add((c.nombre, Rectangle.Empty));
+                if (tcs.Task.IsCompleted)
+                    foreach (var c in tcs.Task.Result)
+                        _categorias.Add((c.nombre, Rectangle.Empty));
+                else
+                    MessageBox.Show("El servidor no respondió. Verifica la conexión.");
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error al conectar: " + ex.Message);
             }
+            finally
+            {
+                conn?.Dispose();
+            }
 
-            _conn?.Dispose();
             CalcularZonas();
-            this.Invalidate();
+            if (!this.IsDisposed)
+                this.Invoke((Action)(() => this.Invalidate()));
         }
-
-        // ── El resto del código de dibujo no cambia ──────────────────
 
         private void CalcularZonas()
         {
@@ -93,7 +92,7 @@ namespace QUIZTEAM
         {
             base.OnPaint(e);
             Graphics g = e.Graphics;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
             g.Clear(Color.FromArgb(26, 26, 46));
 

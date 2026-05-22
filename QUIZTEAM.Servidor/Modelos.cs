@@ -1,6 +1,4 @@
-﻿using System.Collections.Generic;
-
-namespace QUIZTEAM.Servidor
+﻿namespace QUIZTEAM.Servidor
 {
     public class Pregunta
     {
